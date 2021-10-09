@@ -1,5 +1,5 @@
 # autoBAR
-Free energy simulator with Tinker software packages
+A free energy simulator with Tinker software packages
 
 # Introduction
 
