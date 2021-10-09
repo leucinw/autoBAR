@@ -1,9 +1,9 @@
 # autoBAR
-A free energy simulator with Tinker software packages
+An automated tool for alchemical free energy simulation using polarizable AMOEBA and AMOEBA+ force fields with Tinker packages.
 
-# Introduction
-
-Alchemical free energy simulation using polarizable AMOEBA and AMOEBA+ force fields.
+# Prerequisite
+- python modules: `yaml` and `numpy`
+- compiled software: `Tinker` and `Tinker9` (if GPU will be used)
 
 # How to setup 
 
