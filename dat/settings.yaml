@@ -1,0 +1,54 @@
+
+#===================================
+#        Chengwen Liu              #
+#      liuchw2010@gmail.com        #
+#   University of Texas at Austin  #
+#===================================
+
+# Software
+liquid_md_engine: Tinker9        # Time-consuming MD, use Tinker9 to accelarate 
+liquid_bar_engine: Tinker        # Use Tinker for better quality. Can use Tinker9
+
+# Free energy settings 
+hydration: YES                 # Hydration free energy: YES/NO/True/False
+lambda_window: COURSER         # A series of Lambdas to scale ele/vdw interactions. Can be COURSER or DEFAULT 
+
+# Files you should provide 
+gas_xyz: final.xyz             # Ligand/small molecule tinker xyz file
+box_xyz: box.xyz               # Simulation box tinker xyz file, with box information 
+tinker_prm: final.prm          # Tinker parameter file
+
+# Molecular dynamics settings
+liquid_md_total_time: 4.0            # Simulation time for liquid (in ns)
+liquid_md_time_step: 2.0             # Integration time step (in fs)
+liquid_md_write_freq: 1.0            # Write out frequency (in ps)
+liquid_md_ensemble: NPT              # Liquid MD ensemble (NPT or NVT)
+liquid_md_temperature: 300.0         # Liquid MD temperature (in Kelvin) 
+liquid_md_pressure: 1.0              # Liquid MD temperature (in atm.) 
+
+gas_md_total_time: 3.0            # Simulation time for gas (in ns)
+gas_md_time_step:  0.1            # Integration time step (in fs)
+gas_md_write_freq: 1.0            # Write out frequency (in ps)
+gas_md_temperature: 300.0         # Gas MD temperature (in Kelvin) 
+
+# Node list (can be nodes with GTX10s, RTX20s, RTX30s GPU cards)
+# write twice if you want to submit two jobs on one node (e.g. RTX 3080 card)
+node_list:                     
+  -   node45
+  -   node46
+  -   node47
+  -   node42
+  -   node51
+  -   node54
+  -   node55
+  -  node193
+  -  node212
+  -  node215
+  -  node211
+  -   node58
+  -   node94
+  -  node194
+  -  node195
+  -   node70
+  - 	node36
+  - 	node36
