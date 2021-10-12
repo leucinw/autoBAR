@@ -24,8 +24,8 @@ Prepare the following 4 files:
   # Run `result`: summarize and printout the bar analysis result
   python autoBAR.py result
   ```
-* Non-interactive mode
+* Automated mode
   ```shell
-  # Run `all`: all the above commands
-  python autoBAR.py all
+  # Run `auto`: automatically run all the above commands
+  python autoBAR.py auto
   ```
