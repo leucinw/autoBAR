@@ -29,3 +29,11 @@ Prepare the following 4 files:
   # Run `auto`: automatically run all the above commands
   python autoBAR.py auto
   ```
+# Notes
+* Suggested settings for Hydration FE
+  * `lambda_window`: courser
+  * `liquid_md_total_time`: 1.25 ns
+  * `liquid_md_time_step`: 2.0 fs
+  * `gas_md_total_time`: 1.25 ns
+  * `gas_md_time_step`: 0.1 fs
+  * `polar_eps`: 10e-5
