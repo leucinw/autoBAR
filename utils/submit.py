@@ -35,6 +35,10 @@ def main():
   if node in rtx30s:
     if 'cuda10.2' in command:
       command = command.replace('cuda10.2', 'cuda11.2')
+  centos7s = ['node37', 'node38', 'node142', 'node144']
+  if node in centos7s:
+    if 'source-C8' in command:
+      command = command.replace('source-C8', 'source-C7')
   subone(node, command)
   return
 
