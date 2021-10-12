@@ -29,6 +29,10 @@ gas_md_time_step:  0.1            # Integration time step (in fs)
 gas_md_write_freq: 1.0            # Write out frequency (in ps)
 gas_md_temperature: 300.0         # Gas MD temperature (in Kelvin)
 
+# AMOEBA Force Field related settings
+liquid_polar_eps: 0.00001         # polar_eps for liquid simulation
+gas_polar_eps: 0.00001            # polar_eps for gas phase simulation
+
 # Jobs will run on these nodes
 node_list:
   - node50

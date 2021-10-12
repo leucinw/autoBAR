@@ -22,6 +22,7 @@ GREEN = '\033[92m'
 YELLOW = '\33[93m'
 
 def setup():
+  phase_polareps = {'liquid':liquidpolareps, 'gas':gaspolareps}
   for phase in phases:
     for i in range(len(orderparams)):
       elb, vlb = orderparams[i]
@@ -30,6 +31,8 @@ def setup():
         for line in phase_key[phase]:
           if 'parameters' in line.lower():
             line = f'parameters     ../{prm}\n'
+          if 'polar-eps ' in line.lower():
+            line = f'polar-eps {phase_polareps[phase]} \n'
           fw.write(line)
         fw.write('\n')
         fw.write(f'ligand -1 {natom}\n')
@@ -241,7 +244,7 @@ def main():
 
   global orderparams
   orderparams = []
-  lambdawindow = FEsimsettings["lambda_window"]
+  lambdawindow = FEsimsettings["lambda_window"].upper()
   if lambdawindow == "COURSER":
     orderprmfile = os.path.join(rootdir, "dat", "orderparams_courser")
   else:
@@ -292,6 +295,10 @@ def main():
   gastemperature = FEsimsettings["gas_md_temperature"] 
   gaswriteout = FEsimsettings["gas_md_write_freq"]
   gastotalstep = int((1000000.0*gastotaltime)/gastimestep)
+
+  global liquidpolareps, gaspolareps
+  liquidpolareps = FEsimsettings["liquid_polar_eps"] 
+  gaspolareps = FEsimsettings["gas_polar_eps"] 
 
   global liquidmdexe, liquidbarexe, gasmdexe, gasbarexe
   liquidmdexe = "/home/liuchw/Softwares/tinkers/Tinker9-latest/build_cuda10.2/dynamic9.sh"
