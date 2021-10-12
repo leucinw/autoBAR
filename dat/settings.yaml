@@ -5,40 +5,53 @@
 #   University of Texas at Austin  #
 #===================================
 
-# This file is used for autoBAR.py setting up
-# Any thing with "#" will be ignored
-
-# Software
-liquid_md_engine: Tinker9        # Choices: Tinker9/Tinker
-liquid_bar_engine: Tinker        # Choices: Tinker9/Tinker
-
 # Free energy settings 
-hydration: YES                 # Hydration free energy. YES/NO/True/False
-lambda_window: COURSER         # A series of Lambdas to scale ele/vdw interactions. Can be COURSER or DEFAULT 
+hydration: YES                # Hydration free energy: YES/NO/True/False
+lambda_window: DEFAULT        # A series of Lambdas to scale ele/vdw interactions. Can be COURSER or DEFAULT
+overwritebar: NO              # Overwrite the existing .bar and .ene files: YES/NO/True/False
+checktime: 120.0              # Time interval (in second) used by autoBAR.py to check the dynamic and bar process
 
 # Files you should provide 
-gas_xyz: final.xyz             # Small molecule tinker xyz file
-box_xyz: box.xyz               # Simulation box tinker xyz file, with BOX INFORMATION in the second line! 
-tinker_prm: final.prm          # Tinker parameter file, with HEADER in it
+gas_xyz: final.xyz             # Ligand/small molecule tinker xyz file
+box_xyz: box.xyz               # Simulation box tinker xyz file, with box information
+tinker_prm: final.prm          # Tinker parameter file
 
-# Molecular dynamics settings
-liquid_md_total_time: 4.0         # Simulation time for liquid (in ns)
-liquid_md_time_step: 2.0          # Integration time step (in fs)
-liquid_md_write_freq: 1.0         # Write out frequency (in ps)
-liquid_md_ensemble: NPT           # Liquid MD ensemble (NPT or NVT)
-liquid_md_temperature: 300.0      # Liquid MD temperature (in Kelvin) 
-liquid_md_pressure: 1.0           # Liquid MD temperature (in atm.) 
+# Molecular dynamics simulation settings
+liquid_md_total_time: 1.0            # Simulation time for liquid (in ns)
+liquid_md_time_step: 2.0             # Integration time step (in fs)
+liquid_md_write_freq: 1.0            # Write out frequency (in ps)
+liquid_md_ensemble: NPT              # Liquid MD ensemble (NPT or NVT)
+liquid_md_temperature: 300.0         # Liquid MD temperature (in Kelvin)
+liquid_md_pressure: 1.0              # Liquid MD temperature (in atm.)
 
-gas_md_total_time: 3.0            # Simulation time for gas (in ns)
+gas_md_total_time: 1.0            # Simulation time for gas (in ns)
 gas_md_time_step:  0.1            # Integration time step (in fs)
 gas_md_write_freq: 1.0            # Write out frequency (in ps)
-gas_md_temperature: 300.0         # Gas MD temperature (in Kelvin) 
+gas_md_temperature: 300.0         # Gas MD temperature (in Kelvin)
 
-# Node list (can be nodes with GTX10s, RTX20s, RTX30s GPU cards)
-# write twice if you want to submit two jobs on one node (e.g. RTX 3080 card)
-# Use 26 nodes (can repeat) if you have DEFAULT lambda_window
-# Use 18 nodes (can repeat) if you have COURSER lambda_window
-node_list:                     
+# Jobs will run on these nodes
+node_list:
+  - node50
+  - node56
+  - node57
+  - node61
+  - node62
+  - node63
+  - node64
+  - node76
+  - node77
+  - node78
+  - node79
+  - node80
+  - node81
+  - node82
+  - node84
+  - node85
+  - node95
+  - node96
+  - node97
+  - node98
+  - node99
   - node45
   - node46
   - node47
@@ -46,14 +59,3 @@ node_list:
   - node51
   - node54
   - node55
-  - node193
-  - node212
-  - node215
-  - node211
-  - node58
-  - node94
-  - node194
-  - node195
-  - node70
-  - node36 # submit jobs on this node
-  - node36 # submit jobs on this node
