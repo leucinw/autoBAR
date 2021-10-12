@@ -22,7 +22,6 @@ GREEN = '\033[92m'
 YELLOW = '\33[93m'
 
 def setup():
-  phase_polareps = {'liquid':liquidpolareps, 'gas':gaspolareps}
   for phase in phases:
     for i in range(len(orderparams)):
       elb, vlb = orderparams[i]
@@ -32,7 +31,7 @@ def setup():
           if 'parameters' in line.lower():
             line = f'parameters     ../{prm}\n'
           if 'polar-eps ' in line.lower():
-            line = f'polar-eps {phase_polareps[phase]} \n'
+            line = f'polar-eps {polareps} \n'
           fw.write(line)
         fw.write('\n')
         fw.write(f'ligand -1 {natom}\n')
@@ -66,23 +65,28 @@ def dynamic():
             sys.exit(RED + "Error: only NPT or NVT ensemble is supported for Free energy simulations" + ENDC)
           if nodes == []:
             subprocess.run(dynamiccmd, shell=True)
-            print(GREEN + ' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
+            print(GREEN + f' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
           else:
             subprocess.run(f"nohup python {submitexe} -c '{dynamiccmd}' -n {nodes[i]} 2>err &", shell=True)
-            print(GREEN + ' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
+            print(GREEN + f' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
         if phase == 'gas':
           dynamiccmd = f"{phase_dynamic[phase]} {xyzfile} -key {keyfile} {gastotalstep} {gastimestep} {gaswriteout} 2 {gastemperature} > {logfile}"
           if nodes == []:
             subprocess.run(dynamiccmd, shell=True)
-            print(GREEN + ' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
+            print(GREEN + f' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
           else:
             subprocess.run(f"nohup python {submitexe} -c '{dynamiccmd}' -n {nodes[i]} 2>err &", shell=True)
-            print(GREEN + ' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
+            print(GREEN + f' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
       else:
         print(YELLOW + f" [Warning] {logfile} exists in {phase} folder for {fname}" + ENDC)
   return
 
 def bar():
+  if overwritebar:
+    for phase in phases:
+      dirname = os.path.join(homedir, phase)
+      os.system(f"rm -f {dirname}/*.bar {dirname}/*.ene")
+      print(YELLOW + " Deleted the existing .ene and .bar files" + ENDC)
   print(YELLOW + " Checking the completeness of the MD trajectories, please wait... " + ENDC)
   if inputaction == "auto":
     proceed = False
@@ -296,19 +300,17 @@ def main():
   gaswriteout = FEsimsettings["gas_md_write_freq"]
   gastotalstep = int((1000000.0*gastotaltime)/gastimestep)
 
-  global liquidpolareps, gaspolareps
-  liquidpolareps = FEsimsettings["liquid_polar_eps"] 
-  gaspolareps = FEsimsettings["gas_polar_eps"] 
+  global polareps 
+  polareps = FEsimsettings["polar_eps"]
 
   global liquidmdexe, liquidbarexe, gasmdexe, gasbarexe
   liquidmdexe = "/home/liuchw/Softwares/tinkers/Tinker9-latest/build_cuda10.2/dynamic9.sh"
   liquidbarexe = "/home/liuchw/Softwares/tinkers/Tinker9-latest/build_cuda10.2/bar9.sh"
   gasmdexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/dynamic.x" 
   gasbarexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/bar.x"
-  
+ 
+  global overwritebar
   overwritebar = FEsimsettings["overwritebar"]
-  if overwritebar:
-    os.system(f"rm -f */*.bar */*.ene")
 
   actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result}
   if inputaction in actions.keys():
