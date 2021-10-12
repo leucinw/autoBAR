@@ -81,7 +81,7 @@ def dynamic():
 
 def bar():
   print(YELLOW + " Checking the completeness of the MD trajectories, please wait... " + ENDC)
-  if inputaction == "all":
+  if inputaction == "auto":
     proceed = False
     while not proceed: 
       proceed, phase_simtime = checkdynamic(liquidtotaltime, gastotaltime, phases, orderparams, homedir)
@@ -154,7 +154,7 @@ def bar():
 
 def result():
   print(YELLOW + " Checking the completeness of the BAR analysis" + ENDC)
-  if inputaction == 'all':
+  if inputaction == 'auto':
     proceed = False
     while not proceed: 
       proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes = checkbar(phases, orderparams, homedir)
@@ -216,7 +216,7 @@ def result():
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('act', help = "Actions to take.", choices = ['setup', 'dynamic', 'bar', 'result', 'all'], type = str.lower) 
+  parser.add_argument('act', help = "Actions to take.", choices = ['setup', 'dynamic', 'bar', 'result', 'auto'], type = str.lower) 
   
   global inputaction
   inputaction = vars(parser.parse_args())['act']
