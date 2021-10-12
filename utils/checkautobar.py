@@ -26,6 +26,8 @@ def checkdynamic(liquidtotaltime, gastotaltime, phases, orderparams, homedir):
         for line in lines[-20:]:
           if "Current Time" in line:
             simtime = float(line.split()[2])
+          if "Simulation Time" in line:
+            simtime = float(line.split()[2])
         if (simtime == phase_simtime[phase]):
           print(GREEN + "  [" + fname + f"]: {simtime}/{phase_simtime[phase]} ps!" + ENDC)
           statuslist.append(True)
