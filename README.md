@@ -13,7 +13,7 @@ Prepare the following 4 files:
 * `settings.yaml`: settings read by autoBAR.py program. [see an example file here](https://github.com/leucinw/autoBAR/blob/main/dat/settings.yaml).
 
 # How to run 
-* Iteractive mode
+* Interactive mode
   ```shell
   # Run `setup`: generate the necessary input files for Tinker
   python autoBAR.py setup
@@ -24,7 +24,7 @@ Prepare the following 4 files:
   # Run `result`: summarize and printout the bar analysis result
   python autoBAR.py result
   ```
-* Non-iteractive mode
+* Non-interactive mode
   ```shell
   # Run `all`: all the above commands
   python autoBAR.py all
