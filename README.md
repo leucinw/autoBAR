@@ -1,11 +1,14 @@
+
 # autoBAR
-An automated tool for alchemical free energy simulation using polarizable AMOEBA and AMOEBA+ force fields with Tinker packages.
+
+An automated tool for alchemical free energy simulation using polarizable AMOEBA and AMOEBA+ force fields with Tinker software packages.
 
 # Prerequisite
 - python modules: `yaml` and `numpy`
 - compiled software: `Tinker` and `Tinker9` (if GPU will be used)
 
 # How to setup 
+
 Prepare the following 4 files:
 * `gas_xyz`: ligand tinker xyz file
 * `box_xyz`: ligand or ligand-protein in water
@@ -13,6 +16,11 @@ Prepare the following 4 files:
 * `settings.yaml`: settings read by autoBAR.py program. Please refer to the [example file here](https://github.com/leucinw/autoBAR/blob/main/dat/settings.yaml).
 
 # How to run 
+
+To make it flexible to use, this program was designed to be run in either interactive or automated mode. 
+In the interactive mode, one can choose to run an individual step depending on the requirement. 
+In the automated mode, this program will automatically go through all steps untill it exits.
+
 * Interactive mode
   ```shell
   # Run `setup`: generate the necessary input files for Tinker
@@ -30,6 +38,7 @@ Prepare the following 4 files:
   python autoBAR.py auto
   ```
 # Notes
+
 * Suggested settings for HFE simulations
   * `lambda_window`: courser
   * `liquid_md_total_time`: 1.25 ns
@@ -37,6 +46,7 @@ Prepare the following 4 files:
   * `gas_md_total_time`: 1.25 ns
   * `gas_md_time_step`: 0.1 fs
   * `polar_eps`: 10e-5
+
 * One-step perturbation is supported 
   * A `{fname}.prm_` file with small parameter perturbation need to be in the working directory
   * No need modify the `settings.yaml` file
