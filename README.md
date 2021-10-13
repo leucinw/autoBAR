@@ -37,7 +37,7 @@ Prepare the following 4 files:
   * `gas_md_total_time`: 1.25 ns
   * `gas_md_time_step`: 0.1 fs
   * `polar_eps`: 10e-5
-* One step perturbation is supported 
+* One-step perturbation is supported 
   * A `.prm_` file with small parameter perturbation need to be in the working directory
   * No need modify the `settings.yaml` file
   * This will be treated as the end state (two end states in HFE)
