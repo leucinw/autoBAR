@@ -29,14 +29,21 @@ def setup():
       with open(fname + ".key", 'w') as fw:
         for line in phase_key[phase]:
           if 'parameters' in line.lower():
-            line = f'parameters     ../{prm}\n'
+            if (elb*vlb > 1.0):
+              line = f'parameters     ../{perturbprm}\n'
+            else:
+              line = f'parameters     ../{prm}\n'
           if 'polar-eps ' in line.lower():
             line = f'polar-eps {polareps} \n'
           fw.write(line)
         fw.write('\n')
         fw.write(f'ligand -1 {natom}\n')
+        if (elb*vlb > 1.0):
+          elb = 1.0
+          vlb = 1.0
         fw.write(f'ele-lambda {elb}\n')
         fw.write(f'vdw-lambda {vlb}\n')
+          
       linkxyz = f"ln -sf {homedir}/{phase_xyz[phase]} {homedir}/{phase}/{fname}.xyz"
       movekey = f"mv {fname}.key ./{phase}"
       subprocess.run(linkxyz, shell=True)
@@ -45,7 +52,6 @@ def setup():
   return
 
 def dynamic():
-  phase_dynamic = {'liquid':liquidmdexe, 'gas':gasmdexe}
   for phase in phases:
     phasedir = os.path.join(homedir, phase)
     os.chdir(phasedir)
@@ -225,27 +231,36 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('act', help = "Actions to take.", choices = ['setup', 'dynamic', 'bar', 'result', 'auto'], type = str.lower) 
   
+  # global settings 
   global inputaction
   inputaction = vars(parser.parse_args())['act']
-  
   global rootdir, homedir
   rootdir = os.path.join(os.path.split(__file__)[0])
   homedir = os.getcwd()
-
   if not os.path.isfile(os.path.join(homedir, "settings.yaml")):
     sys.exit(RED + "Please provide 'settings.yaml' file; " + ENDC + GREEN + f"An example is here for you {os.path.join(rootdir, 'dat', 'settings.yaml')}" + ENDC)
   else:
     with open('settings.yaml') as f:
       FEsimsettings = yaml.load(f, Loader=yaml.FullLoader)
-  
   global prm, checktime
   lig = FEsimsettings['gas_xyz'] 
   box = FEsimsettings['box_xyz'] 
-  prm = FEsimsettings["tinker_prm"]
+  prm = FEsimsettings["parameters"]
   hfe = FEsimsettings["hydration"] 
-  nodelist = FEsimsettings["node_list"]
   checktime = FEsimsettings["checktime"]
-
+  global natom
+  natom = int(open(lig).readlines()[0].split()[0])
+  global overwritebar
+  overwritebar = FEsimsettings["overwritebar"]
+  global polareps 
+  polareps = FEsimsettings["polar_eps"]
+  global nodes
+  nodes = FEsimsettings["node_list"]
+  if nodes == None:
+    nodes = []
+  else:
+    global submitexe
+    submitexe = os.path.join(rootdir, "utils", "submit.py")
   global orderparams
   orderparams = []
   lambdawindow = FEsimsettings["lambda_window"].upper()
@@ -258,31 +273,22 @@ def main():
       d = line.split()
       orderparams.append([float(d[0]), float(d[1])])
   
-  global liquidkeylines, gaskeylines
-  liquidkeylines = open(os.path.join(rootdir, "dat", "liquid.key")).readlines()
-  gaskeylines = open(os.path.join(rootdir, "dat", "gas.key")).readlines()
-  
-  global phases
+  global perturbprm
+  perturbprm = prm + "_"
+  if os.path.isfile(os.path.join(homedir, perturbprm)):
+    orderparams.append([2.0, 2.0])
+    
+  # liquid phase specific settings 
+  global phases, liquidkeylines
   phases = ['liquid']
-  if hfe:
-    phases.append('gas')
-  for phase in phases:
-    if not os.path.isdir(f"{phase}"):
-      os.system(f"mkdir {phase}")
-  
-  global submitexe
-  submitexe = os.path.join(rootdir, "utils", "submit.py")
-  
-  global nodes
-  nodes = FEsimsettings["node_list"]
-  if nodes == None:
-    nodes = []
-
-  global natom, phase_xyz, phase_key
-  natom = int(open(lig).readlines()[0].split()[0])
-  phase_xyz = {'liquid':box, 'gas':lig}
-  phase_key = {'liquid':liquidkeylines, 'gas':gaskeylines}
-
+  liquidkeylines = open(os.path.join(rootdir, "dat", "liquid.key")).readlines()
+  global liquidmdexe, liquidbarexe
+  liquidmdexe = "/home/liuchw/Softwares/tinkers/Tinker9-latest/build_cuda10.2/dynamic9.sh"
+  liquidbarexe = "/home/liuchw/Softwares/tinkers/Tinker9-latest/build_cuda10.2/bar9.sh"
+  global phase_xyz, phase_key, phase_dynamic
+  phase_xyz = {'liquid':box}
+  phase_key = {'liquid':liquidkeylines}
+  phase_dynamic = {'liquid':liquidmdexe}
   global liquidtotaltime, liquidtimestep, liquidwriteout, liquidtotalstep
   global liquidT, liquidP, liquidensemble
   liquidtotaltime = FEsimsettings["liquid_md_total_time"] 
@@ -292,25 +298,27 @@ def main():
   liquidP = FEsimsettings["liquid_md_pressure"]
   liquidensemble = FEsimsettings["liquid_md_ensemble"].upper()
   liquidtotalstep = int((1000000.0*liquidtotaltime)/liquidtimestep)
+  if not os.path.isdir('liquid'):
+    os.system("mkdir liquid")
 
-  global gastotaltime, gastimestep, gaswriteout, gastemperature, gastotalstep
-  gastotaltime = FEsimsettings["gas_md_total_time"] 
-  gastimestep = FEsimsettings["gas_md_time_step"] 
-  gastemperature = FEsimsettings["gas_md_temperature"] 
-  gaswriteout = FEsimsettings["gas_md_write_freq"]
-  gastotalstep = int((1000000.0*gastotaltime)/gastimestep)
-
-  global polareps 
-  polareps = FEsimsettings["polar_eps"]
-
-  global liquidmdexe, liquidbarexe, gasmdexe, gasbarexe
-  liquidmdexe = "/home/liuchw/Softwares/tinkers/Tinker9-latest/build_cuda10.2/dynamic9.sh"
-  liquidbarexe = "/home/liuchw/Softwares/tinkers/Tinker9-latest/build_cuda10.2/bar9.sh"
-  gasmdexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/dynamic.x" 
-  gasbarexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/bar.x"
- 
-  global overwritebar
-  overwritebar = FEsimsettings["overwritebar"]
+  # gas phase specific settings
+  if hfe:
+    phases.append('gas')
+    global gaskeylines,gasmdexe,gasbarexe
+    gaskeylines = open(os.path.join(rootdir, "dat", "gas.key")).readlines()
+    gasmdexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/dynamic.x" 
+    gasbarexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/bar.x"
+    global gastotaltime, gastimestep, gaswriteout, gastemperature, gastotalstep
+    gastotaltime = FEsimsettings["gas_md_total_time"] 
+    gastimestep = FEsimsettings["gas_md_time_step"] 
+    gastemperature = FEsimsettings["gas_md_temperature"] 
+    gaswriteout = FEsimsettings["gas_md_write_freq"]
+    gastotalstep = int((1000000.0*gastotaltime)/gastimestep)
+    phase_xyz = {'liquid':box, 'gas':lig}
+    phase_key = {'liquid':liquidkeylines, 'gas':gaskeylines}
+    phase_dynamic = {'liquid':liquidmdexe, 'gas':gasmdexe}
+    if not os.path.isdir('gas'):
+      os.system("mkdir gas")
 
   actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result}
   if inputaction in actions.keys():
