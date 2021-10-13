@@ -9,7 +9,7 @@ An automated tool for alchemical free energy simulation using polarizable AMOEBA
 Prepare the following 4 files:
 * `gas_xyz`: ligand tinker xyz file
 * `box_xyz`: ligand or ligand-protein in water
-* `parameters`: Tinker parameter file
+* `parameters`: Tinker parameter file (see [Notes](#notes) for one-step perturbation function)
 * `settings.yaml`: settings read by autoBAR.py program. [see an example file here](https://github.com/leucinw/autoBAR/blob/main/dat/settings.yaml).
 
 # How to run 
@@ -38,5 +38,6 @@ Prepare the following 4 files:
   * `gas_md_time_step`: 0.1 fs
   * `polar_eps`: 10e-5
 * One step perturbation is supported 
-  * A `prm` file (same name) with an undercore `_` is needed
+  * A `.prm_` file with small parameter perturbation need to be in the working directory
+  * No need modify the `settings.yaml` file
   * This will be treated as the end state (two end states in HFE)
