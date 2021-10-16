@@ -58,6 +58,9 @@ def dynamic():
     for i in range(len(orderparams)):
       elb, vlb = orderparams[i]
       fname = "%s-e%s-v%s"%(phase, "%03d"%int(elb*100), "%03d"%int(vlb*100))
+      if (elb*vlb > 1.0) and copyarcforperturb:
+        print(YELLOW + f" Skipping dynamic for {fname} " + ENDC)
+        break
       xyzfile = fname + ".xyz"
       keyfile = xyzfile.replace("xyz", "key")
       logfile = xyzfile.replace("xyz", "log")
@@ -88,26 +91,27 @@ def dynamic():
   return
 
 def bar():
-  if overwritebar:
-    for phase in phases:
-      dirname = os.path.join(homedir, phase)
-      os.system(f"rm -f {dirname}/*.bar {dirname}/*.ene")
-      print(YELLOW + " Deleted the existing .ene and .bar files" + ENDC)
   print(YELLOW + " Checking the completeness of the MD trajectories, please wait... " + ENDC)
+  if copyarcforperturb:
+    checkorderparams = orderparams[:-1]
+  else:
+    checkorderparams = orderparams
   if inputaction == "auto":
     proceed = False
     while not proceed: 
-      proceed, phase_simtime = checkdynamic(liquidtotaltime, gastotaltime, phases, orderparams, homedir)
+      proceed, phase_simtime = checkdynamic(liquidtotaltime, gastotaltime, phases, checkorderparams, homedir)
       if proceed:
         break
       now = datetime.now().strftime("%b %d %Y %H:%M:%S")
       print(YELLOW + f" [{now}] Waiting for dynamic jobs to finish ..." + ENDC)
-      time.sleep(checktime)
+      time.sleep(checkingtime)
   else:
-    proceed, phase_simtime = checkdynamic(liquidtotaltime, gastotaltime, phases, orderparams, homedir)
+    proceed, phase_simtime = checkdynamic(liquidtotaltime, gastotaltime, phases, checkorderparams, homedir)
   
   if proceed:
     for phase in phases:
+      phasedir = os.path.join(homedir, phase)
+      os.chdir(phasedir)
       for i in range(0,len(orderparams)-1,1):
         elb0, vlb0 = orderparams[i]
         elb1, vlb1 = orderparams[i+1]
@@ -115,6 +119,9 @@ def bar():
         fname1 = "%s-e%s-v%s"%(phase, "%03d"%int(elb1*100), "%03d"%int(vlb1*100))
         arcfile0 = fname0 + ".arc"
         arcfile1 = fname1 + ".arc"
+        if (elb1*vlb1 > 1.0) and copyarcforperturb:
+          linkarc = f"ln -sf {arcfile0} {arcfile1}"
+          os.system(linkarc)
         if phase == 'liquid':
           printname = fname0
           outfile = fname0 + ".out"
@@ -129,16 +136,14 @@ def bar():
             if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
               subprocess.run(cmdstr, shell=True)
             else:
-              print(GREEN + f" [Warning] {barfile} exist in {phase} folder! If you want to overwrite, please set `overwritebar=True`" + ENDC)
+              print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
           else:
             if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-              phasedir = os.path.join(homedir, phase)
-              os.chdir(phasedir)
               cmdstr = f"nohup python {submitexe} -c '{barstr}' -n {nodes[i]} 2>err &"
               subprocess.run(cmdstr, shell=True)
               print(GREEN + f" submitted {printname} on {nodes[i]}" + ENDC)
             else:
-              print(GREEN + f" [Warning] {barfile} exist in {phase} folder! If you want to overwrite, please set `overwritebar:True` in settings.yaml" + ENDC)
+              print(GREEN + f" [Warning] {barfile} exist in {phase} folder! " + ENDC)
         if phase == 'gas':
           printname = fname1
           outfile = fname1 + ".out"
@@ -153,16 +158,14 @@ def bar():
             if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
               subprocess.run(barstr, shell=True)
             else:
-              print(GREEN + f" [Warning] {barfile} exist in {phase} folder! If you want to overwrite, please set `overwritebar:True` in settings.yaml" + ENDC)
+              print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
           else:
             if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-              phasedir = os.path.join(homedir, phase)
-              os.chdir(phasedir)
               cmdstr = f"nohup python {submitexe} -c '{barstr}' -n {nodes[i]} 2>err &"
               subprocess.run(cmdstr, shell=True)
               print(GREEN + f" submitted {printname} on {nodes[i]}" + ENDC)
             else:
-              print(GREEN + f" [Warning] {barfile} exist in {phase} folder! If you want to overwrite, please set `overwritebar:True` in settings.yaml" + ENDC)
+              print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
   return
 
 def result():
@@ -175,10 +178,15 @@ def result():
         break
       now = datetime.now().strftime("%b %d %Y %H:%M:%S")
       print(YELLOW + f" [{now}] Waiting for bar jobs to finish ..." + ENDC)
-      time.sleep(checktime)
+      time.sleep(checkingtime)
   else:
     proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes = checkbar(phases, orderparams, homedir)
+  
   if proceed:
+    if copyarcforperturb:
+      for phase in phases:
+        rmcmd = f"rm -f {phase}/*200.arc"
+        os.system(rmcmd)
     FEgas = []
     Errgas = []
     FEliquid = []
@@ -242,16 +250,14 @@ def main():
   else:
     with open('settings.yaml') as f:
       FEsimsettings = yaml.load(f, Loader=yaml.FullLoader)
-  global prm, checktime
+  global prm, checkingtime
   lig = FEsimsettings['gas_xyz'] 
   box = FEsimsettings['box_xyz'] 
   prm = FEsimsettings["parameters"]
   hfe = FEsimsettings["hydration"] 
-  checktime = FEsimsettings["checktime"]
+  checkingtime = FEsimsettings["checking_time"]
   global natom
   natom = int(open(lig).readlines()[0].split()[0])
-  global overwritebar
-  overwritebar = FEsimsettings["overwritebar"]
   global polareps 
   polareps = FEsimsettings["polar_eps"]
   global nodes
@@ -274,9 +280,13 @@ def main():
       orderparams.append([float(d[0]), float(d[1])])
   
   global perturbprm
+  global copyarcforperturb
+  copyarcforperturb = False
   perturbprm = prm + "_"
   if os.path.isfile(os.path.join(homedir, perturbprm)):
     orderparams.append([2.0, 2.0])
+    copyarcforperturb = FEsimsettings["copy_arc_for_perturb"]
+
     
   # liquid phase specific settings 
   global phases, liquidkeylines
