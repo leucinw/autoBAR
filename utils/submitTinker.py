@@ -136,27 +136,13 @@ def submit_jobs(jobcmds, jobtype):
   jobcmds = tmp
   return jobcmds
 
-def read_node_list():
-  g_list = []
-  c_list = []
-  node_list = "/home/liuchw/bin/TinkerGPU2022/nodes.dat"
-  lines = open(node_list).readlines()
-  for line in lines:
-    if not line[0].startswith("#"):
-      s = line.split()
-      if "GPU" in line:
-        g_list.append(s[1])
-      if "CPU" in line:
-        c_list.append(s[1])
-  return g_list, c_list
-
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('-x', dest = 'jobshs',  nargs='+', help = "Scripts to run", default = []) 
   parser.add_argument('-c', dest = 'jobcmds',  nargs='+', help = "Commands to run", default = []) 
   parser.add_argument('-t', dest = 'type',  help = "Job type", choices =['CPU', 'GPU'], required=True, type = str.upper) 
   parser.add_argument('-n', dest = 'nproc',  help = "Nproc requested", default=2, type=int) 
-  parser.add_argument('-nodes', dest = 'nodes',  nargs='+', help = "node list", default = []) 
+  parser.add_argument('-nodes', dest = 'nodes',  nargs='+', help = "node list") 
   args = vars(parser.parse_args())
   jobshs = args["jobshs"]
   jobcmds = args["jobcmds"]
@@ -175,11 +161,8 @@ if __name__ == '__main__':
       jobcmds.append(f'cd {currdir}; sh {jobsh}')
   
   print(GREEN + f"   === Submitting {jtyp} Jobs to Ren Lab Clusters === " + ENDC)
-  if nodes != []:
-    gpu_node_list = nodes
-    cpu_node_list = nodes
-  else:
-    gpu_node_list, cpu_node_list = read_node_list()
+  gpu_node_list = nodes
+  cpu_node_list = nodes
   jobcmds = submit_jobs(jobcmds, jtyp)
   while jobcmds != []:
     time.sleep(5.0)
