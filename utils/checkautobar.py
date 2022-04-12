@@ -35,17 +35,24 @@ def checkdynamic(liquidtotaltime, gastotaltime, phases, orderparams, homedir):
           print(RED + "  [" + fname + f"]: {simtime}/{phase_simtime[phase]} ps!" + ENDC)
           statuslist.append(False) 
       else:
-        statuslist.append(False)
+        if gastotaltime == 0:
+          statuslist.append(True)
+        else:
+          statuslist.append(False)
   completed = all(statuslist)
   return completed, phase_simtime
 
-def checkbar(phases, orderparams, homedir):
+def checkbar(phases, orderparams, homedir, ignoregas):
   statuslist = []
   gasenes = []
   liquidenes = []
   gasperturbsteps = []
   liquidperturbsteps = []
-  for phase in phases:
+  checkphases = phases
+  if ignoregas == 1:
+    checkphases = ['liquid']
+  
+  for phase in checkphases:
     for i in range(0,len(orderparams)-1,1):
       elb0, vlb0 = orderparams[i]
       elb1, vlb1 = orderparams[i+1]
