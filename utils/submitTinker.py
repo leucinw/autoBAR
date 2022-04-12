@@ -81,7 +81,7 @@ def check_gpu_avail(node):
     if 'N/A' in r:
       if r.split()[1].isdigit():
         tot_cards.append(r.split()[1])
-    if ('tinker9' in r) or ('dynamic' in r):
+    if ('tinker9' in r) or ('dynamic' in r) or ('bar' in r):
       occ_cards.append(r.split()[1])
   
   ava_cards = tot_cards

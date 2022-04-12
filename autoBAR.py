@@ -23,35 +23,37 @@ YELLOW = '\33[93m'
 
 def setup():
   for phase in phases:
-    for i in range(len(orderparams)):
-      elb, vlb = orderparams[i]
-      fname = "%s-e%s-v%s"%(phase, "%03d"%int(elb*100), "%03d"%int(vlb*100))
-      with open(fname + ".key", 'w') as fw:
-        for line in phase_key[phase]:
-          if 'parameters' in line.lower():
-            if (elb*vlb > 1.0):
-              line = f'parameters     ../{perturbprm}\n'
-            else:
-              line = f'parameters     ../{prm}\n'
-          if 'polar-eps ' in line.lower():
-            line = f'polar-eps {polareps} \n'
-          fw.write(line)
-        fw.write('\n')
-        fw.write(f'ligand -1 {natom}\n')
-        if (elb*vlb > 1.0):
-          elb = 1.0
-          vlb = 1.0
-        fw.write(f'ele-lambda {elb}\n')
-        fw.write(f'vdw-lambda {vlb}\n')
-          
-      linkxyz = f"ln -sf {homedir}/{phase_xyz[phase]} {homedir}/{phase}/{fname}.xyz"
-      movekey = f"mv {fname}.key ./{phase}"
-      subprocess.run(linkxyz, shell=True)
-      subprocess.run(movekey, shell=True)
+    if not (ignoregas == 1 and phase == 'gas'):
+      for i in range(len(orderparams)):
+        elb, vlb = orderparams[i]
+        fname = "%s-e%s-v%s"%(phase, "%03d"%int(elb*100), "%03d"%int(vlb*100))
+        with open(fname + ".key", 'w') as fw:
+          for line in phase_key[phase]:
+            if 'parameters' in line.lower():
+              if (elb*vlb > 1.0):
+                line = f'parameters     ../{perturbprm}\n'
+              else:
+                line = f'parameters     ../{prm}\n'
+            if 'polar-eps ' in line.lower():
+              line = f'polar-eps {polareps} \n'
+            fw.write(line)
+          fw.write('\n')
+          fw.write(f'ligand -1 {natom}\n')
+          if (elb*vlb > 1.0):
+            elb = 1.0
+            vlb = 1.0
+          fw.write(f'ele-lambda {elb}\n')
+          fw.write(f'vdw-lambda {vlb}\n')
+            
+        linkxyz = f"ln -sf {homedir}/{phase_xyz[phase]} {homedir}/{phase}/{fname}.xyz"
+        movekey = f"mv {fname}.key ./{phase}"
+        subprocess.run(linkxyz, shell=True)
+        subprocess.run(movekey, shell=True)
   print(GREEN + ' [GOOD] BAR simulation files generated!' + ENDC)
   return
 
 def dynamic():
+  dynamiccmds = []
   for phase in phases:
     phasedir = os.path.join(homedir, phase)
     os.chdir(phasedir)
@@ -67,31 +69,33 @@ def dynamic():
       if (not os.path.isfile(logfile)):
         if phase == 'liquid':
           if liquidensemble == "NPT":
-            dynamiccmd = f"{phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 4 {liquidT} {liquidP} > {logfile}"
+            dynamiccmd = f"cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 4 {liquidT} {liquidP} > {logfile}"
+            if not os.path.isfile(os.path.join(phasedir, logfile)):
+              dynamiccmds.append(dynamiccmd)
           elif liquidensemble == "NVT":
-            dynamiccmd = f"{phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 2 {liquidT} > {logfile}"
+            dynamiccmd = f"cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 2 {liquidT} > {logfile}"
+            if not os.path.isfile(os.path.join(phasedir, logfile)):
+              dynamiccmds.append(dynamiccmd)
           else:
             sys.exit(RED + "Error: only NPT or NVT ensemble is supported for Free energy simulations" + ENDC)
-          if nodes == []:
-            subprocess.run(dynamiccmd, shell=True)
-            print(GREEN + f' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
-          else:
-            subprocess.run(f"nohup python {submitexe} -c '{dynamiccmd}' -n {nodes[i]} 2>err &", shell=True)
-            print(GREEN + f' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
         if phase == 'gas':
-          dynamiccmd = f"{phase_dynamic[phase]} {xyzfile} -key {keyfile} {gastotalstep} {gastimestep} {gaswriteout} 2 {gastemperature} > {logfile}"
-          if nodes == []:
-            subprocess.run(dynamiccmd, shell=True)
-            print(GREEN + f' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
-          else:
-            subprocess.run(f"nohup python {submitexe} -c '{dynamiccmd}' -n {nodes[i]} 2>err &", shell=True)
-            print(GREEN + f' [GOOD] Dynamic jobs submitted for {fname}' + ENDC)
+          dynamiccmd = f"cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {gastotalstep} {gastimestep} {gaswriteout} 2 {gastemperature} > {logfile}"
+          if (not os.path.isfile(os.path.join(phasedir, logfile))) and (os.path.isfile(os.path.join(phasedir, xyzfile))):
+            dynamiccmds.append(dynamiccmd)
       else:
         print(YELLOW + f" [Warning] {logfile} exists in {phase} folder for {fname}" + ENDC)
+    
+    # submit
+    for cmd in dynamiccmds:
+      if nodes == []:
+        subprocess.run(cmd, shell=True)
+      else:
+        os.system(f"python {submitexe} -c '{cmd}' -t GPU -nodes {' '.join(nodes)}")
   return
 
 def bar():
   print(YELLOW + " Checking the completeness of the MD trajectories, please wait... " + ENDC)
+  barcmds = []
   if copyarcforperturb:
     checkorderparams = orderparams[:-1]
   else:
@@ -107,7 +111,7 @@ def bar():
       time.sleep(checkingtime)
   else:
     proceed, phase_simtime = checkdynamic(liquidtotaltime, gastotaltime, phases, checkorderparams, homedir)
-  
+    
   if proceed:
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
@@ -127,7 +131,7 @@ def bar():
           outfile = fname0 + ".out"
           barfile = fname0 + ".bar"
           enefile = fname0 + ".ene"
-          barcmd1 = f"{liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && "
+          barcmd1 = f"cd {phasedir}; {liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && "
           totalsnapshot = int(phase_simtime[phase]/liquidwriteout)
           startsnapshot = int(totalsnapshot/5.0) + 1
           barcmd2 = f"{liquidbarexe} 2 {barfile} {startsnapshot} {totalsnapshot} 1 {startsnapshot} {totalsnapshot} 1 > {enefile} "
@@ -139,9 +143,7 @@ def bar():
               print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
           else:
             if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-              cmdstr = f"nohup python {submitexe} -c '{barstr}' -n {nodes[i]} 2>err &"
-              subprocess.run(cmdstr, shell=True)
-              print(GREEN + f" submitted {printname} on {nodes[i]}" + ENDC)
+              barcmds.append(barstr)
             else:
               print(GREEN + f" [Warning] {barfile} exist in {phase} folder! " + ENDC)
         if phase == 'gas':
@@ -149,38 +151,41 @@ def bar():
           outfile = fname1 + ".out"
           barfile = fname1 + ".bar"
           enefile = fname1 + ".ene"
-          barcmd1 = f"{gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && "
+          barcmd1 = f"cd {phasedir}; {gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && "
           totalsnapshot = int(phase_simtime[phase]/liquidwriteout)
           startsnapshot = int(totalsnapshot/5.0) + 1
           barcmd2 = f"{gasbarexe} 2 {barfile} {startsnapshot} {totalsnapshot} 1 {startsnapshot} {totalsnapshot} 1 > {enefile} "
           barstr = barcmd1 + barcmd2
-          if nodes == []:
-            if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-              subprocess.run(barstr, shell=True)
+          if gastotaltime != 0:
+            if nodes == []:
+              if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
+                subprocess.run(barstr, shell=True)
+              else:
+                print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
             else:
-              print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
-          else:
-            if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-              cmdstr = f"nohup python {submitexe} -c '{barstr}' -n {nodes[i]} 2>err &"
-              subprocess.run(cmdstr, shell=True)
-              print(GREEN + f" submitted {printname} on {nodes[i]}" + ENDC)
-            else:
-              print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
+              if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
+                barcmds.append(barstr)
+              else:
+                print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
+    # submit
+    for cmd in barcmds:
+      if nodes != []:
+        os.system(f"python {submitexe} -c '{cmd}' -t GPU -nodes {' '.join(nodes)}")
   return
 
 def result():
   print(YELLOW + " Checking the completeness of the BAR analysis" + ENDC)
   if inputaction == 'auto':
     proceed = False
-    while not proceed: 
-      proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes = checkbar(phases, orderparams, homedir)
+    while not proceed:
+      proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes = checkbar(phases, orderparams, homedir, ignoregas)
       if proceed:
         break
       now = datetime.now().strftime("%b %d %Y %H:%M:%S")
       print(YELLOW + f" [{now}] Waiting for bar jobs to finish ..." + ENDC)
       time.sleep(checkingtime)
   else:
-    proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes = checkbar(phases, orderparams, homedir)
+    proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes = checkbar(phases, orderparams, homedir, ignoregas)
   
   if proceed:
     if copyarcforperturb:
@@ -250,7 +255,7 @@ def main():
   else:
     with open('settings.yaml') as f:
       FEsimsettings = yaml.load(f, Loader=yaml.FullLoader)
-  global prm, checkingtime
+  global prm, checkingtime, hfe
   lig = FEsimsettings['gas_xyz'] 
   box = FEsimsettings['box_xyz'] 
   prm = FEsimsettings["parameters"]
@@ -266,7 +271,7 @@ def main():
     nodes = []
   else:
     global submitexe
-    submitexe = os.path.join(rootdir, "utils", "submit.py")
+    submitexe = os.path.join(rootdir, "utils", "submitTinker.py")
   global orderparams
   orderparams = []
   lambdawindow = FEsimsettings["lambda_window"].upper()
@@ -330,6 +335,11 @@ def main():
     if not os.path.isdir('gas'):
       os.system("mkdir gas")
 
+  global ignoregas
+  if gastotaltime == 0.0:
+    ignoregas = 1
+  else:
+    ignoregas = 0
   actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result}
   if inputaction in actions.keys():
     actions[inputaction]()
