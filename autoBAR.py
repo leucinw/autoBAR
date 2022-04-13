@@ -317,6 +317,7 @@ def main():
     os.system("mkdir liquid")
 
   # gas phase specific settings
+  global ignoregas
   if hfe:
     phases.append('gas')
     global gaskeylines,gasmdexe,gasbarexe
@@ -332,14 +333,14 @@ def main():
     phase_xyz = {'liquid':box, 'gas':lig}
     phase_key = {'liquid':liquidkeylines, 'gas':gaskeylines}
     phase_dynamic = {'liquid':liquidmdexe, 'gas':gasmdexe}
-    if not os.path.isdir('gas'):
+    if gastotaltime == 0.0:
+      ignoregas = 1
+    else:
+      ignoregas = 0
+    
+    if (not os.path.isdir('gas')) and (ignoregas == 0):
       os.system("mkdir gas")
 
-  global ignoregas
-  if gastotaltime == 0.0:
-    ignoregas = 1
-  else:
-    ignoregas = 0
   actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result}
   if inputaction in actions.keys():
     actions[inputaction]()
