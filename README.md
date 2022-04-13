@@ -5,7 +5,7 @@ An automated tool for alchemical free energy simulation using polarizable AMOEBA
 
 # Prerequisite
 - python modules: `yaml` and `numpy`
-- compiled software: `Tinker` and `Tinker9` (if GPU will be used)
+- compiled software: `Tinker` (for gas phase simulations) and `Tinker9` (for liquid/solution phase NPT/NVT simulations)
 
 # How to setup 
 
@@ -18,8 +18,8 @@ Prepare the following 4 files:
 # How to run 
 
 To make it flexible to use, this program was designed to be run in either interactive or automated mode. 
-In the interactive mode, one can choose to run an individual step depending on the requirement. 
-In the automated mode, this program will automatically go through all steps untill it exits.
+In the interactive mode, an individual step can be run depending on the requirement. 
+In the automated mode, this program will automatically go through all steps until it exits.
 
 * Interactive mode
   ```shell
