@@ -6,15 +6,14 @@
 #===================================
 
 # Global settings
-hydration: YES                # Hydration free energy: YES/NO/True/False
-lambda_window: courser        # A series of lambdas to scale ele/vdw interactions. Can be "COURSER" or "DEFAULT", case insensitive
-checking_time: 120.0           # Time interval (in second) used by autoBAR.py to check the dynamic and bar process
-copy_arc_for_perturb: YES        # Only used if a "xxx.prm_" file exists. YES/True: copy the existing ".arc" file; No/False: re-run dynamic to generate ".arc" file
+lambda_window: courser          # A series of lambdas to scale ele/vdw interactions. Can be "COURSER" or "DEFAULT", case insensitive
+checking_time: 120.0            # Time interval (in second) used by autoBAR.py to check the dynamic and bar process
+copy_arc_for_perturb: YES       # Only used if a "xxx.prm_" file exists. YES/True: copy the existing ".arc" file; No/False: re-run dynamic to generate ".arc" file
 
 # Files should be provided
-gas_xyz: final.xyz             # Ligand/small molecule tinker xyz file
-box_xyz: box.xyz               # Simulation box tinker xyz file, with box information
-parameters: final.prm          # Tinker parameter file
+gas_xyz: final.xyz              # Ligand/small molecule tinker xyz file
+box_xyz: box.xyz                # Simulation box tinker xyz file, with box information
+parameters: final.prm           # Tinker parameter file
 
 # Molecular dynamics simulation settings
 # liquid (solution) phase
@@ -24,8 +23,9 @@ liquid_md_write_freq: 1.0            # Write out frequency (in ps)
 liquid_md_ensemble: NPT              # Liquid MD ensemble (NPT or NVT)
 liquid_md_temperature: 300.0         # Liquid MD temperature (in Kelvin)
 liquid_md_pressure: 1.0              # Liquid MD temperature (in atm.)
-# gas phase (only needed if `Hydration` is set to True/Yes)
-gas_md_total_time: 1.25            # Simulation time for gas (in ns)
+
+# gas phase (can be turned off if set gas_md_total_time to 0)
+gas_md_total_time: 1.25           # Simulation time for gas (in ns)
 gas_md_time_step:  0.1            # Integration time step (in fs)
 gas_md_write_freq: 1.0            # Write out frequency (in ps)
 gas_md_temperature: 300.0         # Gas MD temperature (in Kelvin)
@@ -33,8 +33,8 @@ gas_md_temperature: 300.0         # Gas MD temperature (in Kelvin)
 # Force Field related settings
 polar_eps: 0.00001                # polar-eps for AMOEBA induced dipole convergence
 
-# Computer nodes to spread the jobs (this works only with Ren Lab clusters)
-# If you need to run the jobs sequencially, just need `nodelist:` 
+# Computer nodes to spread the jobs
+# via `ssh`; see utils/submitTinker.py for details
 node_list:
   - node50
   - node56

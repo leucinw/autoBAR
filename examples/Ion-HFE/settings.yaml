@@ -1,0 +1,66 @@
+
+#===================================
+#        Chengwen Liu              #
+#      liuchw2010@gmail.com        #
+#   University of Texas at Austin  #
+#===================================
+
+# Global settings
+lambda_window: courser        # A series of lambdas to scale ele/vdw interactions. Can be "COURSER" or "DEFAULT", case insensitive
+checking_time: 120.0           # Time interval (in second) used by autoBAR.py to check the dynamic and bar process
+copy_arc_for_perturb: YES        # Only used if a "xxx.prm_" file exists. YES/True: copy the existing ".arc" file; No/False: re-run dynamic to generate ".arc" file
+
+# Files should be provided
+gas_xyz: Na.xyz             # Ligand/small molecule tinker xyz file
+box_xyz: Na-water.xyz               # Simulation box tinker xyz file, with box information
+parameters: water03.prm          # Tinker parameter file
+
+# Molecular dynamics simulation settings
+# liquid (solution) phase
+liquid_md_total_time: 0.1            # Simulation time for liquid (in ns)
+liquid_md_time_step: 2.0             # Integration time step (in fs)
+liquid_md_write_freq: 1.0            # Write out frequency (in ps)
+liquid_md_ensemble: NPT              # Liquid MD ensemble (NPT or NVT)
+liquid_md_temperature: 300.0         # Liquid MD temperature (in Kelvin)
+liquid_md_pressure: 1.0              # Liquid MD temperature (in atm.)
+# gas phase (only needed if `Hydration` is set to True/Yes)
+gas_md_total_time: 0.0            # Simulation time for gas (in ns)
+gas_md_time_step:  0.1            # Integration time step (in fs)
+gas_md_write_freq: 1.0            # Write out frequency (in ps)
+gas_md_temperature: 300.0         # Gas MD temperature (in Kelvin)
+
+# Force Field related settings
+polar_eps: 0.00001                # polar-eps for AMOEBA induced dipole convergence
+
+# Computer nodes to spread the jobs (this works only with Ren Lab clusters)
+# If you need to run the jobs sequencially, just need `nodelist:` 
+node_list:
+  - node36 
+  - bme-mars
+  - bme-pluto
+  - bme-sugar
+  - bme-black 
+  - node215 
+  - node194 
+  - node195 
+  - node212 
+  - node211 
+  - node60  
+  - node210 
+  - node58  
+  - node70  
+  - node87  
+  - node88  
+  - node89  
+  - node91  
+  - node92  
+  - node55  
+  - node93  
+  - node96  
+  - node97  
+  - node94  
+  - node43  
+  - node95  
+  - node90  
+  - node100 
+  - node101 

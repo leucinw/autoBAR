@@ -1,0 +1,67 @@
+
+     ######################################################################    
+   ##########################################################################  
+  ###                                                                      ### 
+ ###            Tinker9  --  Software Tools for Molecular Design            ###
+ ##                                                                          ##
+ ##                      Version 1.0.0-rc  January 2021                      ##
+ ##                                                                          ##
+ ##                 Copyright (c)  Zhi Wang & the Ponder Lab                 ##
+ ###                           All Rights Reserved                          ###
+  ###                                                                      ### 
+   ##########################################################################  
+     ######################################################################    
+
+ Compiled at:  16:36:30  Sep 10 2021
+ Commit Date:  Mon Aug 16 01:28:23 2021 -0500
+ Commit:       b78a5351
+
+
+ Simulation Trajectory A and Thermodynamic State 0 :
+
+ Water
+ Number of Frames :          80
+ Temperature :           300.00
+
+ Simulation Trajectory B and Thermodynamic State 1 :
+
+ Water
+ Number of Frames :          80
+ Temperature :           300.00
+
+ Free Energy Difference via FEP Method :
+
+ Free Energy via Forward FEP               0.2283 +/-   0.0161 Kcal/mol
+ Free Energy via Backward FEP              0.2683 +/-   0.0151 Kcal/mol
+
+ Free Energy Difference via BAR Method :
+
+ BAR Iteration   0                         0.2445 Kcal/mol
+ BAR Iteration   1                         0.2486 Kcal/mol
+ BAR Iteration   2                         0.2487 Kcal/mol
+
+ Free Energy via BAR Iteration             0.2487 +/-   0.0185 Kcal/mol
+ Free Energy via BAR Bootstrap             0.2487 +/-   0.0112 Kcal/mol
+
+ Enthalpy from Potential Energy Averages :
+
+ Average Energy for State 0            -8034.9170 +/-   5.8355 kcal/mol
+ Average Energy for State 1            -8030.1466 +/-   7.1357 kcal/mol
+ PdV Work Term for 1 Atm                   0.0010 +/-   0.0004 kcal/mol
+ Enthalpy via Direct Estimate              4.7714 +/-   9.1942 Kcal/mol
+
+ Enthalpy and Entropy via FEP Method :
+
+ Enthalpy via Forward FEP                 -0.9126 +/-  11.8513 Kcal/mol
+ Entropy via Forward FEP                -0.003803 Kcal/mol/K
+ Forward FEP -T*dS Value                   1.1409 Kcal/mol
+
+ Enthalpy via Backward FEP                -2.4694 +/-  14.4865 Kcal/mol
+ Entropy via Backward FEP               -0.009125 Kcal/mol/K
+ Backward FEP -T*dS Value                  2.7376 Kcal/mol
+
+ Enthalpy and Entropy via BAR Method :
+
+ Enthalpy via BAR Estimate                -1.7105 +/-   0.9471 Kcal/mol
+ Entropy via BAR Estimate               -0.006531 Kcal/mol/K
+ BAR Estimate of -T*dS                     1.9592 Kcal/mol

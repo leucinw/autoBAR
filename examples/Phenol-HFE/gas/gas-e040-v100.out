@@ -1,0 +1,38 @@
+
+     ######################################################################
+   ##########################################################################
+  ###                                                                      ###
+ ###            Tinker  ---  Software Tools for Molecular Design            ###
+ ##                                                                          ##
+ ##                       Version 8.10.1  October 2021                       ##
+ ##                                                                          ##
+ ##               Copyright (c)  Jay William Ponder  1990-2021               ##
+ ###                           All Rights Reserved                          ###
+  ###                                                                      ###
+   ##########################################################################
+     ######################################################################
+
+
+ Free Energy Perturbation :          1.000 Lambda for Torsional Angles
+ Free Energy Perturbation :          1.000 Lambda for van der Waals
+ Free Energy Perturbation :          0.400 Lambda for Electrostatics
+
+ Free Energy Perturbation :          1.000 Lambda for Torsional Angles
+ Free Energy Perturbation :          1.000 Lambda for van der Waals
+ Free Energy Perturbation :          0.200 Lambda for Electrostatics
+
+ Initial Processing for Trajectory A :
+
+       Completed     100 Coordinate Frames
+       Completed     200 Coordinate Frames
+       Completed     300 Coordinate Frames
+       Completed     400 Coordinate Frames
+
+ Initial Processing for Trajectory B :
+
+       Completed     100 Coordinate Frames
+       Completed     200 Coordinate Frames
+       Completed     300 Coordinate Frames
+       Completed     400 Coordinate Frames
+
+ Potential Energy Values Written To :  gas-e040-v100.bar

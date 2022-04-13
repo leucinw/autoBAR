@@ -53,9 +53,11 @@ def setup():
   return
 
 def dynamic():
-  dynamiccmds = []
+  liquidcmds = []
+  gascmds = []
   for phase in phases:
     phasedir = os.path.join(homedir, phase)
+    os.system(f"rm -rf {phasedir}/*.sh")
     os.chdir(phasedir)
     for i in range(len(orderparams)):
       elb, vlb = orderparams[i]
@@ -66,36 +68,35 @@ def dynamic():
       xyzfile = fname + ".xyz"
       keyfile = xyzfile.replace("xyz", "key")
       logfile = xyzfile.replace("xyz", "log")
-      if (not os.path.isfile(logfile)):
+      if os.path.isfile(logfile):
+        print(YELLOW + f" [Warning] {logfile} exists in {phase} folder for {fname}" + ENDC)
+      else:
         if phase == 'liquid':
           if liquidensemble == "NPT":
-            dynamiccmd = f"cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 4 {liquidT} {liquidP} > {logfile}"
-            if not os.path.isfile(os.path.join(phasedir, logfile)):
-              dynamiccmds.append(dynamiccmd)
-          elif liquidensemble == "NVT":
-            dynamiccmd = f"cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 2 {liquidT} > {logfile}"
-            if not os.path.isfile(os.path.join(phasedir, logfile)):
-              dynamiccmds.append(dynamiccmd)
-          else:
-            sys.exit(RED + "Error: only NPT or NVT ensemble is supported for Free energy simulations" + ENDC)
+            dynamiccmd = f" 'cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 4 {liquidT} {liquidP} > {logfile}' "
+            liquidcmds.append(dynamiccmd)
+          if liquidensemble == "NVT":
+            dynamiccmd = f" 'cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 2 {liquidT} > {logfile}' "
+            liquidcmds.append(dynamiccmd)
         if phase == 'gas':
-          dynamiccmd = f"cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {gastotalstep} {gastimestep} {gaswriteout} 2 {gastemperature} > {logfile}"
-          if (not os.path.isfile(os.path.join(phasedir, logfile))) and (os.path.isfile(os.path.join(phasedir, xyzfile))):
-            dynamiccmds.append(dynamiccmd)
-      else:
-        print(YELLOW + f" [Warning] {logfile} exists in {phase} folder for {fname}" + ENDC)
+          dynamiccmd = f" 'cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {gastotalstep} {gastimestep} {gaswriteout} 2 {gastemperature} > {logfile}' "
+          gascmds.append(dynamiccmd)
     
-    # submit
-    for cmd in dynamiccmds:
-      if nodes == []:
-        subprocess.run(cmd, shell=True)
-      else:
-        os.system(f"python {submitexe} -c '{cmd}' -t GPU -nodes {' '.join(nodes)}")
+  # submit jobs to clusters 
+  for phase in phases:
+    phasedir = os.path.join(homedir, phase)
+    os.chdir(phasedir)
+    if phase == 'gas':
+      cmdstr = " ".join(gascmds)
+      os.system(f"python {submitexe} -c {cmdstr} -t CPU -nodes {' '.join(nodes)} -n 4")
+    if phase == 'liquid':
+      cmdstr = " ".join(liquidcmds)
+      os.system(f"python {submitexe} -c {cmdstr} -t GPU -nodes {' '.join(nodes)}")
   return
 
 def bar():
   print(YELLOW + " Checking the completeness of the MD trajectories, please wait... " + ENDC)
-  barcmds = []
+  
   if copyarcforperturb:
     checkorderparams = orderparams[:-1]
   else:
@@ -113,6 +114,8 @@ def bar():
     proceed, phase_simtime = checkdynamic(liquidtotaltime, gastotaltime, phases, checkorderparams, homedir)
     
   if proceed:
+    liquidcmds = []
+    gascmds = []
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
       os.chdir(phasedir)
@@ -135,17 +138,11 @@ def bar():
           totalsnapshot = int(phase_simtime[phase]/liquidwriteout)
           startsnapshot = int(totalsnapshot/5.0) + 1
           barcmd2 = f"{liquidbarexe} 2 {barfile} {startsnapshot} {totalsnapshot} 1 {startsnapshot} {totalsnapshot} 1 > {enefile} "
-          barstr = barcmd1 + barcmd2
-          if nodes == []:
-            if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-              subprocess.run(cmdstr, shell=True)
-            else:
-              print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
+          barstr = f" '{barcmd1} {barcmd2} ' "
+          if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
+            liquidcmds.append(barstr)
           else:
-            if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-              barcmds.append(barstr)
-            else:
-              print(GREEN + f" [Warning] {barfile} exist in {phase} folder! " + ENDC)
+            print(GREEN + f" [Warning] {barfile} exist in {phase} folder! " + ENDC)
         if phase == 'gas':
           printname = fname1
           outfile = fname1 + ".out"
@@ -155,22 +152,23 @@ def bar():
           totalsnapshot = int(phase_simtime[phase]/liquidwriteout)
           startsnapshot = int(totalsnapshot/5.0) + 1
           barcmd2 = f"{gasbarexe} 2 {barfile} {startsnapshot} {totalsnapshot} 1 {startsnapshot} {totalsnapshot} 1 > {enefile} "
-          barstr = barcmd1 + barcmd2
+          barstr = f" '{barcmd1} {barcmd2} ' "
           if gastotaltime != 0:
-            if nodes == []:
-              if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-                subprocess.run(barstr, shell=True)
-              else:
-                print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
+            if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
+              gascmds.append(barstr)
             else:
-              if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-                barcmds.append(barstr)
-              else:
-                print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
-    # submit
-    for cmd in barcmds:
-      if nodes != []:
-        os.system(f"python {submitexe} -c '{cmd}' -t GPU -nodes {' '.join(nodes)}")
+              print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
+  
+  # submit jobs to clusters 
+  for phase in phases:
+    phasedir = os.path.join(homedir, phase)
+    os.chdir(phasedir)
+    if phase == 'gas':
+      cmdstr = " ".join(gascmds)
+      os.system(f"python {submitexe} -c {cmdstr} -t CPU -nodes {' '.join(nodes)} -n 4")
+    if phase == 'liquid':
+      cmdstr = " ".join(liquidcmds)
+      os.system(f"python {submitexe} -c {cmdstr} -t GPU -nodes {' '.join(nodes)}")
   return
 
 def result():
@@ -255,11 +253,10 @@ def main():
   else:
     with open('settings.yaml') as f:
       FEsimsettings = yaml.load(f, Loader=yaml.FullLoader)
-  global prm, checkingtime, hfe
+  global prm, checkingtime
   lig = FEsimsettings['gas_xyz'] 
   box = FEsimsettings['box_xyz'] 
   prm = FEsimsettings["parameters"]
-  hfe = FEsimsettings["hydration"] 
   checkingtime = FEsimsettings["checking_time"]
   global natom
   natom = int(open(lig).readlines()[0].split()[0])
@@ -268,7 +265,7 @@ def main():
   global nodes
   nodes = FEsimsettings["node_list"]
   if nodes == None:
-    nodes = []
+    sys.exit(RED + "[Error] node_list must be provided" + ENDC) 
   else:
     global submitexe
     submitexe = os.path.join(rootdir, "utils", "submitTinker.py")
@@ -292,7 +289,6 @@ def main():
     orderparams.append([2.0, 2.0])
     copyarcforperturb = FEsimsettings["copy_arc_for_perturb"]
 
-    
   # liquid phase specific settings 
   global phases, liquidkeylines
   phases = ['liquid']
@@ -318,29 +314,27 @@ def main():
 
   # gas phase specific settings
   global ignoregas
-  if hfe:
+  global gaskeylines,gasmdexe,gasbarexe
+  gaskeylines = open(os.path.join(rootdir, "dat", "gas.key")).readlines()
+  gasmdexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/dynamic.x" 
+  gasbarexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/bar.x"
+  global gastotaltime, gastimestep, gaswriteout, gastemperature, gastotalstep
+  gastotaltime = FEsimsettings["gas_md_total_time"] 
+  gastimestep = FEsimsettings["gas_md_time_step"] 
+  gastemperature = FEsimsettings["gas_md_temperature"] 
+  gaswriteout = FEsimsettings["gas_md_write_freq"]
+  gastotalstep = int((1000000.0*gastotaltime)/gastimestep)
+  phase_xyz = {'liquid':box, 'gas':lig}
+  phase_key = {'liquid':liquidkeylines, 'gas':gaskeylines}
+  phase_dynamic = {'liquid':liquidmdexe, 'gas':gasmdexe}
+  if gastotaltime == 0.0:
+    ignoregas = 1
+  else:
+    ignoregas = 0
+  if (not os.path.isdir('gas')) and (ignoregas == 0):
+    os.system("mkdir gas")
     phases.append('gas')
-    global gaskeylines,gasmdexe,gasbarexe
-    gaskeylines = open(os.path.join(rootdir, "dat", "gas.key")).readlines()
-    gasmdexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/dynamic.x" 
-    gasbarexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/bar.x"
-    global gastotaltime, gastimestep, gaswriteout, gastemperature, gastotalstep
-    gastotaltime = FEsimsettings["gas_md_total_time"] 
-    gastimestep = FEsimsettings["gas_md_time_step"] 
-    gastemperature = FEsimsettings["gas_md_temperature"] 
-    gaswriteout = FEsimsettings["gas_md_write_freq"]
-    gastotalstep = int((1000000.0*gastotaltime)/gastimestep)
-    phase_xyz = {'liquid':box, 'gas':lig}
-    phase_key = {'liquid':liquidkeylines, 'gas':gaskeylines}
-    phase_dynamic = {'liquid':liquidmdexe, 'gas':gasmdexe}
-    if gastotaltime == 0.0:
-      ignoregas = 1
-    else:
-      ignoregas = 0
-    
-    if (not os.path.isdir('gas')) and (ignoregas == 0):
-      os.system("mkdir gas")
-
+  
   actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result}
   if inputaction in actions.keys():
     actions[inputaction]()

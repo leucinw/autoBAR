@@ -83,7 +83,7 @@ def check_gpu_avail(node):
         tot_cards.append(r.split()[1])
     if ('tinker9' in r) or ('dynamic' in r) or ('bar' in r):
       occ_cards.append(r.split()[1])
-  
+  tot_cards = list(set(tot_cards)) 
   ava_cards = tot_cards
   if occ_cards != []:
     ava_cards = []

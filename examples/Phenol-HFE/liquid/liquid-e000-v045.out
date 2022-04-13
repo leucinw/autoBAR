@@ -1,0 +1,50 @@
+
+     ######################################################################    
+   ##########################################################################  
+  ###                                                                      ### 
+ ###            Tinker9  --  Software Tools for Molecular Design            ###
+ ##                                                                          ##
+ ##                      Version 1.0.0-rc  January 2021                      ##
+ ##                                                                          ##
+ ##                 Copyright (c)  Zhi Wang & the Ponder Lab                 ##
+ ###                           All Rights Reserved                          ###
+  ###                                                                      ### 
+   ##########################################################################  
+     ######################################################################    
+
+ Compiled at:  16:36:30  Sep 10 2021
+ Commit Date:  Mon Aug 16 01:28:23 2021 -0500
+ Commit:       b78a5351
+
+
+ Initial Processing for Trajectory A :
+
+ Primary GPU package :  CUDA
+
+ GPU Device :  Setting Device ID to 0 from GPU utilization
+       Completed     100 Coordinate Frames
+       Completed     200 Coordinate Frames
+       Completed     300 Coordinate Frames
+       Completed     400 Coordinate Frames
+       Completed     500 Coordinate Frames
+ Primary GPU package :  CUDA
+
+ Initial Processing for Trajectory B :
+
+ Primary GPU package :  CUDA
+       Completed     100 Coordinate Frames
+       Completed     200 Coordinate Frames
+       Completed     300 Coordinate Frames
+       Completed     400 Coordinate Frames
+       Completed     500 Coordinate Frames
+
+ Free Energy Perturbation :          1.000 Lambda for Torsional Angles
+ Free Energy Perturbation :          0.450 Lambda for van der Waals
+ Free Energy Perturbation :          0.000 Lambda for Electrostatics
+
+ Free Energy Perturbation :          1.000 Lambda for Torsional Angles
+ Free Energy Perturbation :          0.560 Lambda for van der Waals
+ Free Energy Perturbation :          0.000 Lambda for Electrostatics
+ Primary GPU package :  CUDA
+
+ Potential Energy Values Written To :  liquid-e000-v045.bar
