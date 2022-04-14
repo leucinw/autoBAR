@@ -332,6 +332,10 @@ def main():
   natomliquid = int(lines[0].split()[0])
   if natomliquid != len(lines)-2:
     sys.exit(RED + f"[Error] Please provide box info in {box}" + ENDC)
+  [a,b,c] = lines[1].split()[0:3]
+  if min([float(a), float(b), float(c)] < 30.0:
+    sys.exit(RED + f"[Error] Please provide a bigger box (>30*30*30)" + ENDC)
+
   natomgas = int(open(lig).readlines()[0].split()[0])
   if natomgas == 1:
     gastotaltime = 0.0
