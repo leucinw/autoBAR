@@ -266,16 +266,15 @@ def main():
   nodes = FEsimsettings["node_list"]
   if nodes == None:
     sys.exit(RED + "[Error] node_list must be provided" + ENDC) 
-  else:
-    global submitexe
-    submitexe = os.path.join(rootdir, "utils", "submitTinker.py")
+  global submitexe
+  submitexe = os.path.join(rootdir, "utils", "submitTinker.py")
   global orderparams
   orderparams = []
   lambdawindow = FEsimsettings["lambda_window"].upper()
   if lambdawindow == "COURSER":
     orderprmfile = os.path.join(rootdir, "dat", "orderparams_courser")
   else:
-    orderprmfile = os.path.join(rootdir, "dat", "orderparams")
+    orderprmfile = os.path.join(rootdir, "dat", "orderparams_default")
   for line in open(orderprmfile).readlines():
     if "#" not in line:
       d = line.split()
@@ -338,9 +337,11 @@ def main():
   actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result}
   if inputaction in actions.keys():
     actions[inputaction]()
-  else:
+  elif inputaction == 'auto': 
     for action in actions.keys():
       actions[action]()
+  else:
+    sys.exit(RED + f"[Error] {inputaction} does not supported!" + ENDC)
   return
 
 if __name__ == "__main__":

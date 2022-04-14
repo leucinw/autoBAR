@@ -1,18 +1,16 @@
-#!/usr/bin/env python
 
-# This is an external program used with ForceBalance for Tinker jobs submission
-# The following jobs are supported:
-# 1. dynamic_gpu: run with GPU on the `gpu` node
-# 2. analyze: run with CPU on the `cpu` node
+#===================================
+#        Chengwen Liu              #
+#      liuchw2010@gmail.com        #
+#   University of Texas at Austin  #
+#===================================
 
-# Chengwen Liu
-# Feb 2022
 
 import os
 import sys
 import time
-import subprocess
 import argparse
+import subprocess
 import numpy as np
 
 # color
