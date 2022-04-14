@@ -1,19 +1,19 @@
               StateA              StateB          FreeEnergy(kcal/mol)     Error(kcal/mol)
-    liquid-e000-v000    liquid-e000-v045                   0.0116              0.0032
-    liquid-e000-v045    liquid-e000-v056                   0.2487              0.0185
-    liquid-e000-v056    liquid-e000-v060                   0.2902              0.0206
-    liquid-e000-v060    liquid-e000-v064                   0.4512              0.0398
-    liquid-e000-v064    liquid-e000-v067                   0.3056              0.0429
-    liquid-e000-v067    liquid-e000-v070                   0.2350              0.0371
-    liquid-e000-v070    liquid-e000-v075                   0.3411              0.0638
-    liquid-e000-v075    liquid-e000-v080                   0.1372              0.0414
-    liquid-e000-v080    liquid-e000-v090                  -0.0375              0.0637
-    liquid-e000-v090    liquid-e000-v100                  -0.5377              0.0454
-    liquid-e000-v100    liquid-e020-v100                  -2.2458              0.2282
-    liquid-e020-v100    liquid-e040-v100                  -9.4676              0.2575
-    liquid-e040-v100    liquid-e060-v100                 -17.6544              0.3266
-    liquid-e060-v100    liquid-e070-v100                 -12.2559              0.1275
-    liquid-e070-v100    liquid-e080-v100                 -14.6898              0.1405
-    liquid-e080-v100    liquid-e090-v100                 -17.2080              0.1249
-    liquid-e090-v100    liquid-e100-v100                 -19.6563              0.1324
-        SUMMARY OF THE TOTAL FREE ENERGY                 -91.7324              0.5583
+    liquid-e000-v000    liquid-e000-v045                   0.0121              0.0029
+    liquid-e000-v045    liquid-e000-v056                   0.2662              0.0160
+    liquid-e000-v056    liquid-e000-v060                   0.2823              0.0193
+    liquid-e000-v060    liquid-e000-v064                   0.4199              0.0394
+    liquid-e000-v064    liquid-e000-v067                   0.3899              0.0444
+    liquid-e000-v067    liquid-e000-v070                   0.3158              0.0487
+    liquid-e000-v070    liquid-e000-v075                   0.2774              0.0560
+    liquid-e000-v075    liquid-e000-v080                   0.1503              0.0460
+    liquid-e000-v080    liquid-e000-v090                  -0.0487              0.0678
+    liquid-e000-v090    liquid-e000-v100                  -0.5249              0.0496
+    liquid-e000-v100    liquid-e020-v100                  -2.0631              0.2165
+    liquid-e020-v100    liquid-e040-v100                  -9.6876              0.2700
+    liquid-e040-v100    liquid-e060-v100                 -17.5067              0.3062
+    liquid-e060-v100    liquid-e070-v100                 -12.2505              0.1232
+    liquid-e070-v100    liquid-e080-v100                 -14.5336              0.1267
+    liquid-e080-v100    liquid-e090-v100                 -16.9542              0.1192
+    liquid-e090-v100    liquid-e100-v100                 -19.4508              0.1288
+        SUMMARY OF THE TOTAL FREE ENERGY                 -90.9062              0.5426

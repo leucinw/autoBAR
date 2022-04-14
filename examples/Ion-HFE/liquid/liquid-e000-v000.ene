@@ -31,36 +31,36 @@
 
  Free Energy Difference via FEP Method :
 
- Free Energy via Forward FEP               0.0141 +/-   0.0027 Kcal/mol
- Free Energy via Backward FEP              0.0091 +/-   0.0026 Kcal/mol
+ Free Energy via Forward FEP               0.0122 +/-   0.0024 Kcal/mol
+ Free Energy via Backward FEP              0.0120 +/-   0.0024 Kcal/mol
 
  Free Energy Difference via BAR Method :
 
- BAR Iteration   0                         0.0116 Kcal/mol
- BAR Iteration   1                         0.0116 Kcal/mol
+ BAR Iteration   0                         0.0121 Kcal/mol
+ BAR Iteration   1                         0.0121 Kcal/mol
 
- Free Energy via BAR Iteration             0.0116 +/-   0.0032 Kcal/mol
- Free Energy via BAR Bootstrap             0.0116 +/-   0.0018 Kcal/mol
+ Free Energy via BAR Iteration             0.0121 +/-   0.0029 Kcal/mol
+ Free Energy via BAR Bootstrap             0.0121 +/-   0.0016 Kcal/mol
 
  Enthalpy from Potential Energy Averages :
 
- Average Energy for State 0            -8035.0310 +/-   7.2741 kcal/mol
- Average Energy for State 1            -8034.9090 +/-   5.8340 kcal/mol
- PdV Work Term for 1 Atm                  -0.0008 +/-   0.0005 kcal/mol
- Enthalpy via Direct Estimate              0.1213 +/-   9.3218 Kcal/mol
+ Average Energy for State 0            -8013.6469 +/-   6.8555 kcal/mol
+ Average Energy for State 1            -7996.1958 +/-   6.3232 kcal/mol
+ PdV Work Term for 1 Atm                   0.0009 +/-   0.0009 kcal/mol
+ Enthalpy via Direct Estimate             17.4520 +/-   9.3229 Kcal/mol
 
  Enthalpy and Entropy via FEP Method :
 
- Enthalpy via Forward FEP                  0.1105 +/-  14.6660 Kcal/mol
- Entropy via Forward FEP                 0.000321 Kcal/mol/K
- Forward FEP -T*dS Value                  -0.0964 Kcal/mol
+ Enthalpy via Forward FEP                 -0.4148 +/-  13.7821 Kcal/mol
+ Entropy via Forward FEP                -0.001423 Kcal/mol/K
+ Forward FEP -T*dS Value                   0.4269 Kcal/mol
 
- Enthalpy via Backward FEP                -0.1749 +/-  11.6636 Kcal/mol
- Entropy via Backward FEP               -0.000613 Kcal/mol/K
- Backward FEP -T*dS Value                  0.1840 Kcal/mol
+ Enthalpy via Backward FEP                 0.0936 +/-  12.6098 Kcal/mol
+ Entropy via Backward FEP                0.000272 Kcal/mol/K
+ Backward FEP -T*dS Value                 -0.0815 Kcal/mol
 
  Enthalpy and Entropy via BAR Method :
 
- Enthalpy via BAR Estimate                -0.0107 +/-   0.1959 Kcal/mol
- Entropy via BAR Estimate               -0.000074 Kcal/mol/K
- BAR Estimate of -T*dS                     0.0223 Kcal/mol
+ Enthalpy via BAR Estimate                -0.1822 +/-   0.1667 Kcal/mol
+ Entropy via BAR Estimate               -0.000648 Kcal/mol/K
+ BAR Estimate of -T*dS                     0.1943 Kcal/mol

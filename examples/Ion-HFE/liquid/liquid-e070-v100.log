@@ -28,9 +28,9 @@
  Instantaneous Values for Frame Saved at       500 Dynamics Steps
 
  Current Time                 1.00000000 Picosecond
- Current Potential        -6549.87042602 Kcal/mole
- Current Kinetic           2705.69982105 Kcal/mole
- Lattice Lengths           30.39028358     30.39028358     30.39028358
+ Current Potential        -6613.64115475 Kcal/mole
+ Current Kinetic           2730.95368635 Kcal/mole
+ Lattice Lengths           30.09260559     30.09260559     30.09260559
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                      1
  Coordinate File             liquid-e070-v100.arc
@@ -38,9 +38,9 @@
  Instantaneous Values for Frame Saved at      1000 Dynamics Steps
 
  Current Time                 2.00000000 Picosecond
- Current Potential        -7155.04348469 Kcal/mole
- Current Kinetic           2450.65705012 Kcal/mole
- Lattice Lengths           30.43294525     30.43294525     30.43294525
+ Current Potential        -7243.04902067 Kcal/mole
+ Current Kinetic           2504.73391541 Kcal/mole
+ Lattice Lengths           30.20223427     30.20223427     30.20223427
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                      2
  Coordinate File             liquid-e070-v100.arc
@@ -48,9 +48,9 @@
  Instantaneous Values for Frame Saved at      1500 Dynamics Steps
 
  Current Time                 3.00000000 Picosecond
- Current Potential        -7294.65205852 Kcal/mole
- Current Kinetic           2399.69749948 Kcal/mole
- Lattice Lengths           30.44763947     30.44763947     30.44763947
+ Current Potential        -7457.94945220 Kcal/mole
+ Current Kinetic           2474.81277003 Kcal/mole
+ Lattice Lengths           30.31200409     30.31200409     30.31200409
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                      3
  Coordinate File             liquid-e070-v100.arc
@@ -58,9 +58,9 @@
  Instantaneous Values for Frame Saved at      2000 Dynamics Steps
 
  Current Time                 4.00000000 Picosecond
- Current Potential        -7457.64383090 Kcal/mole
- Current Kinetic           2400.01630531 Kcal/mole
- Lattice Lengths           30.44438362     30.44438362     30.44438362
+ Current Potential        -7496.75444981 Kcal/mole
+ Current Kinetic           2432.00896818 Kcal/mole
+ Lattice Lengths           30.20943260     30.20943260     30.20943260
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                      4
  Coordinate File             liquid-e070-v100.arc
@@ -68,9 +68,9 @@
  Instantaneous Values for Frame Saved at      2500 Dynamics Steps
 
  Current Time                 5.00000000 Picosecond
- Current Potential        -7628.74604778 Kcal/mole
- Current Kinetic           2319.00412094 Kcal/mole
- Lattice Lengths           30.34591866     30.34591866     30.34591866
+ Current Potential        -7521.09537868 Kcal/mole
+ Current Kinetic           2382.32896266 Kcal/mole
+ Lattice Lengths           30.33949661     30.33949661     30.33949661
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                      5
  Coordinate File             liquid-e070-v100.arc
@@ -78,9 +78,9 @@
  Instantaneous Values for Frame Saved at      3000 Dynamics Steps
 
  Current Time                 6.00000000 Picosecond
- Current Potential        -7554.05911300 Kcal/mole
- Current Kinetic           2367.52661290 Kcal/mole
- Lattice Lengths           30.32452202     30.32452202     30.32452202
+ Current Potential        -7623.66169369 Kcal/mole
+ Current Kinetic           2396.72177341 Kcal/mole
+ Lattice Lengths           30.26921463     30.26921463     30.26921463
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                      6
  Coordinate File             liquid-e070-v100.arc
@@ -88,9 +88,9 @@
  Instantaneous Values for Frame Saved at      3500 Dynamics Steps
 
  Current Time                 7.00000000 Picosecond
- Current Potential        -7748.83599757 Kcal/mole
- Current Kinetic           2425.95031395 Kcal/mole
- Lattice Lengths           30.25143242     30.25143242     30.25143242
+ Current Potential        -7748.69451930 Kcal/mole
+ Current Kinetic           2397.92537969 Kcal/mole
+ Lattice Lengths           30.16980743     30.16980743     30.16980743
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                      7
  Coordinate File             liquid-e070-v100.arc
@@ -98,9 +98,9 @@
  Instantaneous Values for Frame Saved at      4000 Dynamics Steps
 
  Current Time                 8.00000000 Picosecond
- Current Potential        -7766.03021435 Kcal/mole
- Current Kinetic           2448.60323405 Kcal/mole
- Lattice Lengths           30.21463203     30.21463203     30.21463203
+ Current Potential        -7798.64767095 Kcal/mole
+ Current Kinetic           2431.17166957 Kcal/mole
+ Lattice Lengths           30.04233360     30.04233360     30.04233360
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                      8
  Coordinate File             liquid-e070-v100.arc
@@ -108,9 +108,9 @@
  Instantaneous Values for Frame Saved at      4500 Dynamics Steps
 
  Current Time                 9.00000000 Picosecond
- Current Potential        -7663.60508028 Kcal/mole
- Current Kinetic           2434.78619349 Kcal/mole
- Lattice Lengths           30.16809464     30.16809464     30.16809464
+ Current Potential        -7833.56332441 Kcal/mole
+ Current Kinetic           2443.31379501 Kcal/mole
+ Lattice Lengths           30.05185509     30.05185509     30.05185509
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                      9
  Coordinate File             liquid-e070-v100.arc
@@ -118,9 +118,9 @@
  Instantaneous Values for Frame Saved at      5000 Dynamics Steps
 
  Current Time                10.00000000 Picosecond
- Current Potential        -7737.67596551 Kcal/mole
- Current Kinetic           2455.62824780 Kcal/mole
- Lattice Lengths           30.09422874     30.09422874     30.09422874
+ Current Potential        -7819.30875796 Kcal/mole
+ Current Kinetic           2399.34402639 Kcal/mole
+ Lattice Lengths           30.13901901     30.13901901     30.13901901
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     10
  Coordinate File             liquid-e070-v100.arc
@@ -128,9 +128,9 @@
  Instantaneous Values for Frame Saved at      5500 Dynamics Steps
 
  Current Time                11.00000000 Picosecond
- Current Potential        -7795.42120620 Kcal/mole
- Current Kinetic           2422.42988450 Kcal/mole
- Lattice Lengths           30.10497665     30.10497665     30.10497665
+ Current Potential        -7840.46725780 Kcal/mole
+ Current Kinetic           2399.84526449 Kcal/mole
+ Lattice Lengths           30.01704025     30.01704025     30.01704025
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     11
  Coordinate File             liquid-e070-v100.arc
@@ -138,9 +138,9 @@
  Instantaneous Values for Frame Saved at      6000 Dynamics Steps
 
  Current Time                12.00000000 Picosecond
- Current Potential        -7849.53354597 Kcal/mole
- Current Kinetic           2473.34804982 Kcal/mole
- Lattice Lengths           30.10887527     30.10887527     30.10887527
+ Current Potential        -7839.43079164 Kcal/mole
+ Current Kinetic           2433.80186670 Kcal/mole
+ Lattice Lengths           29.96265030     29.96265030     29.96265030
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     12
  Coordinate File             liquid-e070-v100.arc
@@ -148,9 +148,9 @@
  Instantaneous Values for Frame Saved at      6500 Dynamics Steps
 
  Current Time                13.00000000 Picosecond
- Current Potential        -7867.97005818 Kcal/mole
- Current Kinetic           2435.62644138 Kcal/mole
- Lattice Lengths           30.07621384     30.07621384     30.07621384
+ Current Potential        -7888.66748230 Kcal/mole
+ Current Kinetic           2520.61988361 Kcal/mole
+ Lattice Lengths           29.98292351     29.98292351     29.98292351
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     13
  Coordinate File             liquid-e070-v100.arc
@@ -158,9 +158,9 @@
  Instantaneous Values for Frame Saved at      7000 Dynamics Steps
 
  Current Time                14.00000000 Picosecond
- Current Potential        -7910.61513373 Kcal/mole
- Current Kinetic           2418.77195122 Kcal/mole
- Lattice Lengths           30.09444809     30.09444809     30.09444809
+ Current Potential        -7884.28151914 Kcal/mole
+ Current Kinetic           2430.36936044 Kcal/mole
+ Lattice Lengths           29.98117256     29.98117256     29.98117256
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     14
  Coordinate File             liquid-e070-v100.arc
@@ -168,9 +168,9 @@
  Instantaneous Values for Frame Saved at      7500 Dynamics Steps
 
  Current Time                15.00000000 Picosecond
- Current Potential        -7985.47997858 Kcal/mole
- Current Kinetic           2482.96129701 Kcal/mole
- Lattice Lengths           30.05524254     30.05524254     30.05524254
+ Current Potential        -7849.33660405 Kcal/mole
+ Current Kinetic           2423.73124281 Kcal/mole
+ Lattice Lengths           29.99499321     29.99499321     29.99499321
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     15
  Coordinate File             liquid-e070-v100.arc
@@ -178,9 +178,9 @@
  Instantaneous Values for Frame Saved at      8000 Dynamics Steps
 
  Current Time                16.00000000 Picosecond
- Current Potential        -7912.25616991 Kcal/mole
- Current Kinetic           2441.84211409 Kcal/mole
- Lattice Lengths           30.00777817     30.00777817     30.00777817
+ Current Potential        -7966.24900520 Kcal/mole
+ Current Kinetic           2404.76043115 Kcal/mole
+ Lattice Lengths           29.93782043     29.93782043     29.93782043
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     16
  Coordinate File             liquid-e070-v100.arc
@@ -188,9 +188,9 @@
  Instantaneous Values for Frame Saved at      8500 Dynamics Steps
 
  Current Time                17.00000000 Picosecond
- Current Potential        -7920.67896014 Kcal/mole
- Current Kinetic           2419.50600408 Kcal/mole
- Lattice Lengths           30.02167702     30.02167702     30.02167702
+ Current Potential        -8086.83833308 Kcal/mole
+ Current Kinetic           2430.80056964 Kcal/mole
+ Lattice Lengths           29.87915802     29.87915802     29.87915802
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     17
  Coordinate File             liquid-e070-v100.arc
@@ -198,9 +198,9 @@
  Instantaneous Values for Frame Saved at      9000 Dynamics Steps
 
  Current Time                18.00000000 Picosecond
- Current Potential        -7951.33603270 Kcal/mole
- Current Kinetic           2388.55003655 Kcal/mole
- Lattice Lengths           30.04175758     30.04175758     30.04175758
+ Current Potential        -8023.41387383 Kcal/mole
+ Current Kinetic           2359.58125600 Kcal/mole
+ Lattice Lengths           29.89397812     29.89397812     29.89397812
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     18
  Coordinate File             liquid-e070-v100.arc
@@ -208,9 +208,9 @@
  Instantaneous Values for Frame Saved at      9500 Dynamics Steps
 
  Current Time                19.00000000 Picosecond
- Current Potential        -7960.66797078 Kcal/mole
- Current Kinetic           2409.15294970 Kcal/mole
- Lattice Lengths           30.02584267     30.02584267     30.02584267
+ Current Potential        -7917.08597855 Kcal/mole
+ Current Kinetic           2427.17735790 Kcal/mole
+ Lattice Lengths           29.96462822     29.96462822     29.96462822
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     19
  Coordinate File             liquid-e070-v100.arc
@@ -218,9 +218,9 @@
  Instantaneous Values for Frame Saved at     10000 Dynamics Steps
 
  Current Time                20.00000000 Picosecond
- Current Potential        -7977.50556856 Kcal/mole
- Current Kinetic           2379.12500773 Kcal/mole
- Lattice Lengths           30.02524376     30.02524376     30.02524376
+ Current Potential        -8025.51273871 Kcal/mole
+ Current Kinetic           2373.14814313 Kcal/mole
+ Lattice Lengths           30.01054001     30.01054001     30.01054001
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     20
  Coordinate File             liquid-e070-v100.arc
@@ -228,9 +228,9 @@
  Instantaneous Values for Frame Saved at     10500 Dynamics Steps
 
  Current Time                21.00000000 Picosecond
- Current Potential        -7922.84500987 Kcal/mole
- Current Kinetic           2411.58988213 Kcal/mole
- Lattice Lengths           30.00595856     30.00595856     30.00595856
+ Current Potential        -8070.52783984 Kcal/mole
+ Current Kinetic           2431.80327893 Kcal/mole
+ Lattice Lengths           29.95715714     29.95715714     29.95715714
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     21
  Coordinate File             liquid-e070-v100.arc
@@ -238,9 +238,9 @@
  Instantaneous Values for Frame Saved at     11000 Dynamics Steps
 
  Current Time                22.00000000 Picosecond
- Current Potential        -7951.65171383 Kcal/mole
- Current Kinetic           2416.07615114 Kcal/mole
- Lattice Lengths           29.97151184     29.97151184     29.97151184
+ Current Potential        -8014.30980480 Kcal/mole
+ Current Kinetic           2343.90193690 Kcal/mole
+ Lattice Lengths           29.97842216     29.97842216     29.97842216
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     22
  Coordinate File             liquid-e070-v100.arc
@@ -248,9 +248,9 @@
  Instantaneous Values for Frame Saved at     11500 Dynamics Steps
 
  Current Time                23.00000000 Picosecond
- Current Potential        -8022.18135423 Kcal/mole
- Current Kinetic           2462.89620812 Kcal/mole
- Lattice Lengths           29.90374565     29.90374565     29.90374565
+ Current Potential        -7994.15178656 Kcal/mole
+ Current Kinetic           2386.02081269 Kcal/mole
+ Lattice Lengths           30.05577660     30.05577660     30.05577660
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     23
  Coordinate File             liquid-e070-v100.arc
@@ -258,9 +258,9 @@
  Instantaneous Values for Frame Saved at     12000 Dynamics Steps
 
  Current Time                24.00000000 Picosecond
- Current Potential        -8037.69860621 Kcal/mole
- Current Kinetic           2350.62913073 Kcal/mole
- Lattice Lengths           29.86874390     29.86874390     29.86874390
+ Current Potential        -8026.75795999 Kcal/mole
+ Current Kinetic           2395.68785166 Kcal/mole
+ Lattice Lengths           30.15557289     30.15557289     30.15557289
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     24
  Coordinate File             liquid-e070-v100.arc
@@ -268,9 +268,9 @@
  Instantaneous Values for Frame Saved at     12500 Dynamics Steps
 
  Current Time                25.00000000 Picosecond
- Current Potential        -8016.81177723 Kcal/mole
- Current Kinetic           2408.57761071 Kcal/mole
- Lattice Lengths           29.88305092     29.88305092     29.88305092
+ Current Potential        -8003.25198768 Kcal/mole
+ Current Kinetic           2481.27245534 Kcal/mole
+ Lattice Lengths           30.04797554     30.04797554     30.04797554
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     25
  Coordinate File             liquid-e070-v100.arc
@@ -278,9 +278,9 @@
  Instantaneous Values for Frame Saved at     13000 Dynamics Steps
 
  Current Time                26.00000000 Picosecond
- Current Potential        -8029.64296957 Kcal/mole
- Current Kinetic           2405.04378911 Kcal/mole
- Lattice Lengths           29.91160202     29.91160202     29.91160202
+ Current Potential        -8105.49049373 Kcal/mole
+ Current Kinetic           2464.17325203 Kcal/mole
+ Lattice Lengths           29.97014236     29.97014236     29.97014236
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     26
  Coordinate File             liquid-e070-v100.arc
@@ -288,9 +288,9 @@
  Instantaneous Values for Frame Saved at     13500 Dynamics Steps
 
  Current Time                27.00000000 Picosecond
- Current Potential        -8091.94652900 Kcal/mole
- Current Kinetic           2400.50805854 Kcal/mole
- Lattice Lengths           29.91379929     29.91379929     29.91379929
+ Current Potential        -7987.65682107 Kcal/mole
+ Current Kinetic           2425.15293267 Kcal/mole
+ Lattice Lengths           29.98558426     29.98558426     29.98558426
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     27
  Coordinate File             liquid-e070-v100.arc
@@ -298,9 +298,9 @@
  Instantaneous Values for Frame Saved at     14000 Dynamics Steps
 
  Current Time                28.00000000 Picosecond
- Current Potential        -8048.14977101 Kcal/mole
- Current Kinetic           2401.45711472 Kcal/mole
- Lattice Lengths           29.96385193     29.96385193     29.96385193
+ Current Potential        -8053.02543451 Kcal/mole
+ Current Kinetic           2397.61529451 Kcal/mole
+ Lattice Lengths           30.02681923     30.02681923     30.02681923
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     28
  Coordinate File             liquid-e070-v100.arc
@@ -308,9 +308,9 @@
  Instantaneous Values for Frame Saved at     14500 Dynamics Steps
 
  Current Time                29.00000000 Picosecond
- Current Potential        -7994.74882665 Kcal/mole
- Current Kinetic           2416.36871089 Kcal/mole
- Lattice Lengths           29.98934555     29.98934555     29.98934555
+ Current Potential        -8051.71737616 Kcal/mole
+ Current Kinetic           2441.51041676 Kcal/mole
+ Lattice Lengths           29.89157867     29.89157867     29.89157867
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     29
  Coordinate File             liquid-e070-v100.arc
@@ -318,9 +318,9 @@
  Instantaneous Values for Frame Saved at     15000 Dynamics Steps
 
  Current Time                30.00000000 Picosecond
- Current Potential        -8122.30112871 Kcal/mole
- Current Kinetic           2472.45552450 Kcal/mole
- Lattice Lengths           29.99433136     29.99433136     29.99433136
+ Current Potential        -8037.84373562 Kcal/mole
+ Current Kinetic           2376.96290889 Kcal/mole
+ Lattice Lengths           29.78695869     29.78695869     29.78695869
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     30
  Coordinate File             liquid-e070-v100.arc
@@ -328,9 +328,9 @@
  Instantaneous Values for Frame Saved at     15500 Dynamics Steps
 
  Current Time                31.00000000 Picosecond
- Current Potential        -8051.72877740 Kcal/mole
- Current Kinetic           2451.52365311 Kcal/mole
- Lattice Lengths           30.00823975     30.00823975     30.00823975
+ Current Potential        -8060.45835187 Kcal/mole
+ Current Kinetic           2407.51578983 Kcal/mole
+ Lattice Lengths           29.88053513     29.88053513     29.88053513
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     31
  Coordinate File             liquid-e070-v100.arc
@@ -338,9 +338,9 @@
  Instantaneous Values for Frame Saved at     16000 Dynamics Steps
 
  Current Time                32.00000000 Picosecond
- Current Potential        -8072.53309785 Kcal/mole
- Current Kinetic           2459.68225572 Kcal/mole
- Lattice Lengths           29.98057938     29.98057938     29.98057938
+ Current Potential        -8097.69709662 Kcal/mole
+ Current Kinetic           2508.78447470 Kcal/mole
+ Lattice Lengths           29.94247627     29.94247627     29.94247627
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     32
  Coordinate File             liquid-e070-v100.arc
@@ -348,9 +348,9 @@
  Instantaneous Values for Frame Saved at     16500 Dynamics Steps
 
  Current Time                33.00000000 Picosecond
- Current Potential        -8063.29148004 Kcal/mole
- Current Kinetic           2435.45372946 Kcal/mole
- Lattice Lengths           29.94531441     29.94531441     29.94531441
+ Current Potential        -8132.40868838 Kcal/mole
+ Current Kinetic           2483.05777036 Kcal/mole
+ Lattice Lengths           29.89453506     29.89453506     29.89453506
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     33
  Coordinate File             liquid-e070-v100.arc
@@ -358,9 +358,9 @@
  Instantaneous Values for Frame Saved at     17000 Dynamics Steps
 
  Current Time                34.00000000 Picosecond
- Current Potential        -8105.90769217 Kcal/mole
- Current Kinetic           2342.75242456 Kcal/mole
- Lattice Lengths           30.00594139     30.00594139     30.00594139
+ Current Potential        -8155.50848580 Kcal/mole
+ Current Kinetic           2365.25287922 Kcal/mole
+ Lattice Lengths           29.93754005     29.93754005     29.93754005
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     34
  Coordinate File             liquid-e070-v100.arc
@@ -368,9 +368,9 @@
  Instantaneous Values for Frame Saved at     17500 Dynamics Steps
 
  Current Time                35.00000000 Picosecond
- Current Potential        -8107.99719207 Kcal/mole
- Current Kinetic           2353.05089708 Kcal/mole
- Lattice Lengths           29.97555733     29.97555733     29.97555733
+ Current Potential        -8106.65302202 Kcal/mole
+ Current Kinetic           2374.52029530 Kcal/mole
+ Lattice Lengths           29.98406410     29.98406410     29.98406410
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     35
  Coordinate File             liquid-e070-v100.arc
@@ -378,9 +378,9 @@
  Instantaneous Values for Frame Saved at     18000 Dynamics Steps
 
  Current Time                36.00000000 Picosecond
- Current Potential        -8076.08557258 Kcal/mole
- Current Kinetic           2386.74872541 Kcal/mole
- Lattice Lengths           29.96479797     29.96479797     29.96479797
+ Current Potential        -8026.41777869 Kcal/mole
+ Current Kinetic           2425.99173403 Kcal/mole
+ Lattice Lengths           29.90709496     29.90709496     29.90709496
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     36
  Coordinate File             liquid-e070-v100.arc
@@ -388,9 +388,9 @@
  Instantaneous Values for Frame Saved at     18500 Dynamics Steps
 
  Current Time                37.00000000 Picosecond
- Current Potential        -8018.81021957 Kcal/mole
- Current Kinetic           2369.13024117 Kcal/mole
- Lattice Lengths           29.95210457     29.95210457     29.95210457
+ Current Potential        -8160.62731273 Kcal/mole
+ Current Kinetic           2430.59901759 Kcal/mole
+ Lattice Lengths           30.01593208     30.01593208     30.01593208
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     37
  Coordinate File             liquid-e070-v100.arc
@@ -398,9 +398,9 @@
  Instantaneous Values for Frame Saved at     19000 Dynamics Steps
 
  Current Time                38.00000000 Picosecond
- Current Potential        -8068.47273842 Kcal/mole
- Current Kinetic           2391.01774876 Kcal/mole
- Lattice Lengths           29.93645477     29.93645477     29.93645477
+ Current Potential        -8053.66246008 Kcal/mole
+ Current Kinetic           2445.62129493 Kcal/mole
+ Lattice Lengths           30.05692482     30.05692482     30.05692482
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     38
  Coordinate File             liquid-e070-v100.arc
@@ -408,9 +408,9 @@
  Instantaneous Values for Frame Saved at     19500 Dynamics Steps
 
  Current Time                39.00000000 Picosecond
- Current Potential        -7998.20173825 Kcal/mole
- Current Kinetic           2331.46319473 Kcal/mole
- Lattice Lengths           29.95513344     29.95513344     29.95513344
+ Current Potential        -8069.96961545 Kcal/mole
+ Current Kinetic           2411.88141535 Kcal/mole
+ Lattice Lengths           30.00413322     30.00413322     30.00413322
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     39
  Coordinate File             liquid-e070-v100.arc
@@ -418,9 +418,9 @@
  Instantaneous Values for Frame Saved at     20000 Dynamics Steps
 
  Current Time                40.00000000 Picosecond
- Current Potential        -8019.43339124 Kcal/mole
- Current Kinetic           2403.10551294 Kcal/mole
- Lattice Lengths           29.91994095     29.91994095     29.91994095
+ Current Potential        -8019.59184718 Kcal/mole
+ Current Kinetic           2410.17301104 Kcal/mole
+ Lattice Lengths           30.03306389     30.03306389     30.03306389
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     40
  Coordinate File             liquid-e070-v100.arc
@@ -428,9 +428,9 @@
  Instantaneous Values for Frame Saved at     20500 Dynamics Steps
 
  Current Time                41.00000000 Picosecond
- Current Potential        -8068.14506002 Kcal/mole
- Current Kinetic           2356.93227251 Kcal/mole
- Lattice Lengths           29.93778229     29.93778229     29.93778229
+ Current Potential        -8100.44628922 Kcal/mole
+ Current Kinetic           2408.65787276 Kcal/mole
+ Lattice Lengths           29.93365860     29.93365860     29.93365860
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     41
  Coordinate File             liquid-e070-v100.arc
@@ -438,9 +438,9 @@
  Instantaneous Values for Frame Saved at     21000 Dynamics Steps
 
  Current Time                42.00000000 Picosecond
- Current Potential        -8106.98530413 Kcal/mole
- Current Kinetic           2389.33038930 Kcal/mole
- Lattice Lengths           30.01672745     30.01672745     30.01672745
+ Current Potential        -8087.63319776 Kcal/mole
+ Current Kinetic           2444.15880645 Kcal/mole
+ Lattice Lengths           30.00716782     30.00716782     30.00716782
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     42
  Coordinate File             liquid-e070-v100.arc
@@ -448,9 +448,9 @@
  Instantaneous Values for Frame Saved at     21500 Dynamics Steps
 
  Current Time                43.00000000 Picosecond
- Current Potential        -8039.15284823 Kcal/mole
- Current Kinetic           2372.04178340 Kcal/mole
- Lattice Lengths           29.99635696     29.99635696     29.99635696
+ Current Potential        -7996.92540512 Kcal/mole
+ Current Kinetic           2407.73491588 Kcal/mole
+ Lattice Lengths           30.07671547     30.07671547     30.07671547
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     43
  Coordinate File             liquid-e070-v100.arc
@@ -458,9 +458,9 @@
  Instantaneous Values for Frame Saved at     22000 Dynamics Steps
 
  Current Time                44.00000000 Picosecond
- Current Potential        -8048.84486152 Kcal/mole
- Current Kinetic           2429.96245362 Kcal/mole
- Lattice Lengths           29.96867561     29.96867561     29.96867561
+ Current Potential        -8119.20922283 Kcal/mole
+ Current Kinetic           2425.92331009 Kcal/mole
+ Lattice Lengths           30.04923058     30.04923058     30.04923058
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     44
  Coordinate File             liquid-e070-v100.arc
@@ -468,9 +468,9 @@
  Instantaneous Values for Frame Saved at     22500 Dynamics Steps
 
  Current Time                45.00000000 Picosecond
- Current Potential        -8108.46276873 Kcal/mole
- Current Kinetic           2510.69795520 Kcal/mole
- Lattice Lengths           29.89679909     29.89679909     29.89679909
+ Current Potential        -8039.54938514 Kcal/mole
+ Current Kinetic           2372.54156458 Kcal/mole
+ Lattice Lengths           30.00203133     30.00203133     30.00203133
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     45
  Coordinate File             liquid-e070-v100.arc
@@ -478,9 +478,9 @@
  Instantaneous Values for Frame Saved at     23000 Dynamics Steps
 
  Current Time                46.00000000 Picosecond
- Current Potential        -8099.41320012 Kcal/mole
- Current Kinetic           2431.33376486 Kcal/mole
- Lattice Lengths           29.92227936     29.92227936     29.92227936
+ Current Potential        -8160.48568245 Kcal/mole
+ Current Kinetic           2394.70279514 Kcal/mole
+ Lattice Lengths           29.98626328     29.98626328     29.98626328
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     46
  Coordinate File             liquid-e070-v100.arc
@@ -488,9 +488,9 @@
  Instantaneous Values for Frame Saved at     23500 Dynamics Steps
 
  Current Time                47.00000000 Picosecond
- Current Potential        -8071.52395321 Kcal/mole
- Current Kinetic           2357.78533150 Kcal/mole
- Lattice Lengths           29.92709351     29.92709351     29.92709351
+ Current Potential        -8078.80092443 Kcal/mole
+ Current Kinetic           2386.16585272 Kcal/mole
+ Lattice Lengths           29.95647049     29.95647049     29.95647049
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     47
  Coordinate File             liquid-e070-v100.arc
@@ -498,9 +498,9 @@
  Instantaneous Values for Frame Saved at     24000 Dynamics Steps
 
  Current Time                48.00000000 Picosecond
- Current Potential        -8032.81851732 Kcal/mole
- Current Kinetic           2401.39848008 Kcal/mole
- Lattice Lengths           29.89155960     29.89155960     29.89155960
+ Current Potential        -8065.09247336 Kcal/mole
+ Current Kinetic           2377.15718373 Kcal/mole
+ Lattice Lengths           29.83234787     29.83234787     29.83234787
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     48
  Coordinate File             liquid-e070-v100.arc
@@ -508,9 +508,9 @@
  Instantaneous Values for Frame Saved at     24500 Dynamics Steps
 
  Current Time                49.00000000 Picosecond
- Current Potential        -8067.74505421 Kcal/mole
- Current Kinetic           2489.16667998 Kcal/mole
- Lattice Lengths           29.87215424     29.87215424     29.87215424
+ Current Potential        -8035.46842405 Kcal/mole
+ Current Kinetic           2438.93505790 Kcal/mole
+ Lattice Lengths           29.86094093     29.86094093     29.86094093
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     49
  Coordinate File             liquid-e070-v100.arc
@@ -518,9 +518,9 @@
  Instantaneous Values for Frame Saved at     25000 Dynamics Steps
 
  Current Time                50.00000000 Picosecond
- Current Potential        -8089.24767612 Kcal/mole
- Current Kinetic           2457.39280058 Kcal/mole
- Lattice Lengths           29.86349678     29.86349678     29.86349678
+ Current Potential        -7992.58683339 Kcal/mole
+ Current Kinetic           2422.96313540 Kcal/mole
+ Lattice Lengths           29.78526497     29.78526497     29.78526497
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     50
  Coordinate File             liquid-e070-v100.arc
@@ -528,9 +528,9 @@
  Instantaneous Values for Frame Saved at     25500 Dynamics Steps
 
  Current Time                51.00000000 Picosecond
- Current Potential        -8070.83660731 Kcal/mole
- Current Kinetic           2385.92686589 Kcal/mole
- Lattice Lengths           29.90367317     29.90367317     29.90367317
+ Current Potential        -8108.08772311 Kcal/mole
+ Current Kinetic           2376.17416415 Kcal/mole
+ Lattice Lengths           29.88084412     29.88084412     29.88084412
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     51
  Coordinate File             liquid-e070-v100.arc
@@ -538,9 +538,9 @@
  Instantaneous Values for Frame Saved at     26000 Dynamics Steps
 
  Current Time                52.00000000 Picosecond
- Current Potential        -8025.77343524 Kcal/mole
- Current Kinetic           2419.53873830 Kcal/mole
- Lattice Lengths           29.91407967     29.91407967     29.91407967
+ Current Potential        -8020.27582938 Kcal/mole
+ Current Kinetic           2464.17315482 Kcal/mole
+ Lattice Lengths           29.94942856     29.94942856     29.94942856
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     52
  Coordinate File             liquid-e070-v100.arc
@@ -548,9 +548,9 @@
  Instantaneous Values for Frame Saved at     26500 Dynamics Steps
 
  Current Time                53.00000000 Picosecond
- Current Potential        -8025.77733414 Kcal/mole
- Current Kinetic           2424.24753982 Kcal/mole
- Lattice Lengths           29.94729042     29.94729042     29.94729042
+ Current Potential        -8097.16190004 Kcal/mole
+ Current Kinetic           2371.18779775 Kcal/mole
+ Lattice Lengths           29.97308350     29.97308350     29.97308350
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     53
  Coordinate File             liquid-e070-v100.arc
@@ -558,9 +558,9 @@
  Instantaneous Values for Frame Saved at     27000 Dynamics Steps
 
  Current Time                54.00000000 Picosecond
- Current Potential        -7999.29557108 Kcal/mole
- Current Kinetic           2424.64862940 Kcal/mole
- Lattice Lengths           29.97249603     29.97249603     29.97249603
+ Current Potential        -8113.06045449 Kcal/mole
+ Current Kinetic           2393.06096124 Kcal/mole
+ Lattice Lengths           29.89426994     29.89426994     29.89426994
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     54
  Coordinate File             liquid-e070-v100.arc
@@ -568,9 +568,9 @@
  Instantaneous Values for Frame Saved at     27500 Dynamics Steps
 
  Current Time                55.00000000 Picosecond
- Current Potential        -8007.87886340 Kcal/mole
- Current Kinetic           2338.05047935 Kcal/mole
- Lattice Lengths           29.97641182     29.97641182     29.97641182
+ Current Potential        -8101.57026441 Kcal/mole
+ Current Kinetic           2455.23468708 Kcal/mole
+ Lattice Lengths           29.84591103     29.84591103     29.84591103
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     55
  Coordinate File             liquid-e070-v100.arc
@@ -578,9 +578,9 @@
  Instantaneous Values for Frame Saved at     28000 Dynamics Steps
 
  Current Time                56.00000000 Picosecond
- Current Potential        -7989.98935813 Kcal/mole
- Current Kinetic           2365.67103653 Kcal/mole
- Lattice Lengths           29.95010567     29.95010567     29.95010567
+ Current Potential        -8145.08546516 Kcal/mole
+ Current Kinetic           2452.68846050 Kcal/mole
+ Lattice Lengths           29.93854713     29.93854713     29.93854713
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     56
  Coordinate File             liquid-e070-v100.arc
@@ -588,9 +588,9 @@
  Instantaneous Values for Frame Saved at     28500 Dynamics Steps
 
  Current Time                57.00000000 Picosecond
- Current Potential        -8118.67117349 Kcal/mole
- Current Kinetic           2484.92541351 Kcal/mole
- Lattice Lengths           29.92272186     29.92272186     29.92272186
+ Current Potential        -8097.48516255 Kcal/mole
+ Current Kinetic           2427.07046249 Kcal/mole
+ Lattice Lengths           29.93886375     29.93886375     29.93886375
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     57
  Coordinate File             liquid-e070-v100.arc
@@ -598,9 +598,9 @@
  Instantaneous Values for Frame Saved at     29000 Dynamics Steps
 
  Current Time                58.00000000 Picosecond
- Current Potential        -7981.82148471 Kcal/mole
- Current Kinetic           2352.68661364 Kcal/mole
- Lattice Lengths           29.91589737     29.91589737     29.91589737
+ Current Potential        -7967.44189098 Kcal/mole
+ Current Kinetic           2411.60964511 Kcal/mole
+ Lattice Lengths           29.90961266     29.90961266     29.90961266
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     58
  Coordinate File             liquid-e070-v100.arc
@@ -608,9 +608,9 @@
  Instantaneous Values for Frame Saved at     29500 Dynamics Steps
 
  Current Time                59.00000000 Picosecond
- Current Potential        -8088.95294775 Kcal/mole
- Current Kinetic           2402.90006949 Kcal/mole
- Lattice Lengths           29.90008926     29.90008926     29.90008926
+ Current Potential        -8083.29870756 Kcal/mole
+ Current Kinetic           2419.61414069 Kcal/mole
+ Lattice Lengths           30.02850914     30.02850914     30.02850914
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     59
  Coordinate File             liquid-e070-v100.arc
@@ -618,9 +618,9 @@
  Instantaneous Values for Frame Saved at     30000 Dynamics Steps
 
  Current Time                60.00000000 Picosecond
- Current Potential        -8066.96293915 Kcal/mole
- Current Kinetic           2386.18353630 Kcal/mole
- Lattice Lengths           29.95295143     29.95295143     29.95295143
+ Current Potential        -8080.74376586 Kcal/mole
+ Current Kinetic           2404.31587946 Kcal/mole
+ Lattice Lengths           29.95707130     29.95707130     29.95707130
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     60
  Coordinate File             liquid-e070-v100.arc
@@ -628,9 +628,9 @@
  Instantaneous Values for Frame Saved at     30500 Dynamics Steps
 
  Current Time                61.00000000 Picosecond
- Current Potential        -8046.66566227 Kcal/mole
- Current Kinetic           2456.52341536 Kcal/mole
- Lattice Lengths           29.95450974     29.95450974     29.95450974
+ Current Potential        -7989.00280681 Kcal/mole
+ Current Kinetic           2430.55933699 Kcal/mole
+ Lattice Lengths           30.00686264     30.00686264     30.00686264
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     61
  Coordinate File             liquid-e070-v100.arc
@@ -638,9 +638,9 @@
  Instantaneous Values for Frame Saved at     31000 Dynamics Steps
 
  Current Time                62.00000000 Picosecond
- Current Potential        -8046.90289955 Kcal/mole
- Current Kinetic           2434.69904183 Kcal/mole
- Lattice Lengths           29.93157005     29.93157005     29.93157005
+ Current Potential        -8059.87876398 Kcal/mole
+ Current Kinetic           2405.86952186 Kcal/mole
+ Lattice Lengths           29.97688293     29.97688293     29.97688293
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     62
  Coordinate File             liquid-e070-v100.arc
@@ -648,9 +648,9 @@
  Instantaneous Values for Frame Saved at     31500 Dynamics Steps
 
  Current Time                63.00000000 Picosecond
- Current Potential        -8102.70828464 Kcal/mole
- Current Kinetic           2483.38342561 Kcal/mole
- Lattice Lengths           29.93877602     29.93877602     29.93877602
+ Current Potential        -8072.40750424 Kcal/mole
+ Current Kinetic           2419.50587539 Kcal/mole
+ Lattice Lengths           30.04557419     30.04557419     30.04557419
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     63
  Coordinate File             liquid-e070-v100.arc
@@ -658,9 +658,9 @@
  Instantaneous Values for Frame Saved at     32000 Dynamics Steps
 
  Current Time                64.00000000 Picosecond
- Current Potential        -8104.55373121 Kcal/mole
- Current Kinetic           2353.81575164 Kcal/mole
- Lattice Lengths           29.88986206     29.88986206     29.88986206
+ Current Potential        -8025.37218693 Kcal/mole
+ Current Kinetic           2457.36642536 Kcal/mole
+ Lattice Lengths           30.01061821     30.01061821     30.01061821
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     64
  Coordinate File             liquid-e070-v100.arc
@@ -668,9 +668,9 @@
  Instantaneous Values for Frame Saved at     32500 Dynamics Steps
 
  Current Time                65.00000000 Picosecond
- Current Potential        -8008.27920455 Kcal/mole
- Current Kinetic           2359.64182446 Kcal/mole
- Lattice Lengths           29.95538521     29.95538521     29.95538521
+ Current Potential        -7967.70801932 Kcal/mole
+ Current Kinetic           2403.62334861 Kcal/mole
+ Lattice Lengths           30.05142975     30.05142975     30.05142975
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     65
  Coordinate File             liquid-e070-v100.arc
@@ -678,9 +678,9 @@
  Instantaneous Values for Frame Saved at     33000 Dynamics Steps
 
  Current Time                66.00000000 Picosecond
- Current Potential        -7974.22415706 Kcal/mole
- Current Kinetic           2403.11420880 Kcal/mole
- Lattice Lengths           29.93112183     29.93112183     29.93112183
+ Current Potential        -8026.97346643 Kcal/mole
+ Current Kinetic           2376.66891234 Kcal/mole
+ Lattice Lengths           30.00559425     30.00559425     30.00559425
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     66
  Coordinate File             liquid-e070-v100.arc
@@ -688,9 +688,9 @@
  Instantaneous Values for Frame Saved at     33500 Dynamics Steps
 
  Current Time                67.00000000 Picosecond
- Current Potential        -8060.10671148 Kcal/mole
- Current Kinetic           2422.13881726 Kcal/mole
- Lattice Lengths           29.94395256     29.94395256     29.94395256
+ Current Potential        -8089.00066250 Kcal/mole
+ Current Kinetic           2366.72411616 Kcal/mole
+ Lattice Lengths           29.92932320     29.92932320     29.92932320
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     67
  Coordinate File             liquid-e070-v100.arc
@@ -698,9 +698,9 @@
  Instantaneous Values for Frame Saved at     34000 Dynamics Steps
 
  Current Time                68.00000000 Picosecond
- Current Potential        -8027.83117427 Kcal/mole
- Current Kinetic           2434.01989814 Kcal/mole
- Lattice Lengths           29.93220139     29.93220139     29.93220139
+ Current Potential        -8234.44302342 Kcal/mole
+ Current Kinetic           2385.90520508 Kcal/mole
+ Lattice Lengths           29.95147514     29.95147514     29.95147514
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     68
  Coordinate File             liquid-e070-v100.arc
@@ -708,9 +708,9 @@
  Instantaneous Values for Frame Saved at     34500 Dynamics Steps
 
  Current Time                69.00000000 Picosecond
- Current Potential        -8012.29590641 Kcal/mole
- Current Kinetic           2422.44926916 Kcal/mole
- Lattice Lengths           29.96527290     29.96527290     29.96527290
+ Current Potential        -8094.17804024 Kcal/mole
+ Current Kinetic           2322.77603622 Kcal/mole
+ Lattice Lengths           29.99511147     29.99511147     29.99511147
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     69
  Coordinate File             liquid-e070-v100.arc
@@ -718,9 +718,9 @@
  Instantaneous Values for Frame Saved at     35000 Dynamics Steps
 
  Current Time                70.00000000 Picosecond
- Current Potential        -7946.05296411 Kcal/mole
- Current Kinetic           2425.41713524 Kcal/mole
- Lattice Lengths           29.94579697     29.94579697     29.94579697
+ Current Potential        -8115.60612471 Kcal/mole
+ Current Kinetic           2398.53268765 Kcal/mole
+ Lattice Lengths           29.88346672     29.88346672     29.88346672
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     70
  Coordinate File             liquid-e070-v100.arc
@@ -728,9 +728,9 @@
  Instantaneous Values for Frame Saved at     35500 Dynamics Steps
 
  Current Time                71.00000000 Picosecond
- Current Potential        -8000.44694869 Kcal/mole
- Current Kinetic           2381.40605234 Kcal/mole
- Lattice Lengths           29.93432999     29.93432999     29.93432999
+ Current Potential        -8127.12082573 Kcal/mole
+ Current Kinetic           2417.70940890 Kcal/mole
+ Lattice Lengths           29.83517647     29.83517647     29.83517647
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     71
  Coordinate File             liquid-e070-v100.arc
@@ -738,9 +738,9 @@
  Instantaneous Values for Frame Saved at     36000 Dynamics Steps
 
  Current Time                72.00000000 Picosecond
- Current Potential        -8126.73096749 Kcal/mole
- Current Kinetic           2430.17197662 Kcal/mole
- Lattice Lengths           29.92991638     29.92991638     29.92991638
+ Current Potential        -8109.39889007 Kcal/mole
+ Current Kinetic           2318.69618540 Kcal/mole
+ Lattice Lengths           29.79162025     29.79162025     29.79162025
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     72
  Coordinate File             liquid-e070-v100.arc
@@ -748,9 +748,9 @@
  Instantaneous Values for Frame Saved at     36500 Dynamics Steps
 
  Current Time                73.00000000 Picosecond
- Current Potential        -8073.69012648 Kcal/mole
- Current Kinetic           2398.49847778 Kcal/mole
- Lattice Lengths           29.91665459     29.91665459     29.91665459
+ Current Potential        -8070.71246377 Kcal/mole
+ Current Kinetic           2452.66985721 Kcal/mole
+ Lattice Lengths           29.91902351     29.91902351     29.91902351
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     73
  Coordinate File             liquid-e070-v100.arc
@@ -758,9 +758,9 @@
  Instantaneous Values for Frame Saved at     37000 Dynamics Steps
 
  Current Time                74.00000000 Picosecond
- Current Potential        -8024.68560356 Kcal/mole
- Current Kinetic           2396.18484979 Kcal/mole
- Lattice Lengths           29.90583992     29.90583992     29.90583992
+ Current Potential        -8076.44908748 Kcal/mole
+ Current Kinetic           2408.03069958 Kcal/mole
+ Lattice Lengths           29.98679543     29.98679543     29.98679543
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     74
  Coordinate File             liquid-e070-v100.arc
@@ -768,9 +768,9 @@
  Instantaneous Values for Frame Saved at     37500 Dynamics Steps
 
  Current Time                75.00000000 Picosecond
- Current Potential        -8147.65499541 Kcal/mole
- Current Kinetic           2396.85645678 Kcal/mole
- Lattice Lengths           29.87259483     29.87259483     29.87259483
+ Current Potential        -8103.51923428 Kcal/mole
+ Current Kinetic           2391.71769892 Kcal/mole
+ Lattice Lengths           29.98506927     29.98506927     29.98506927
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     75
  Coordinate File             liquid-e070-v100.arc
@@ -778,9 +778,9 @@
  Instantaneous Values for Frame Saved at     38000 Dynamics Steps
 
  Current Time                76.00000000 Picosecond
- Current Potential        -8024.38783261 Kcal/mole
- Current Kinetic           2406.69108342 Kcal/mole
- Lattice Lengths           29.90434647     29.90434647     29.90434647
+ Current Potential        -8089.68792084 Kcal/mole
+ Current Kinetic           2423.86038937 Kcal/mole
+ Lattice Lengths           29.97661209     29.97661209     29.97661209
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     76
  Coordinate File             liquid-e070-v100.arc
@@ -788,9 +788,9 @@
  Instantaneous Values for Frame Saved at     38500 Dynamics Steps
 
  Current Time                77.00000000 Picosecond
- Current Potential        -7997.87159320 Kcal/mole
- Current Kinetic           2382.82337910 Kcal/mole
- Lattice Lengths           29.92875862     29.92875862     29.92875862
+ Current Potential        -8039.11859023 Kcal/mole
+ Current Kinetic           2430.26460804 Kcal/mole
+ Lattice Lengths           30.06180382     30.06180382     30.06180382
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     77
  Coordinate File             liquid-e070-v100.arc
@@ -798,9 +798,9 @@
  Instantaneous Values for Frame Saved at     39000 Dynamics Steps
 
  Current Time                78.00000000 Picosecond
- Current Potential        -8085.72895518 Kcal/mole
- Current Kinetic           2413.51015318 Kcal/mole
- Lattice Lengths           29.96296883     29.96296883     29.96296883
+ Current Potential        -8033.64393539 Kcal/mole
+ Current Kinetic           2445.08125618 Kcal/mole
+ Lattice Lengths           29.97193146     29.97193146     29.97193146
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     78
  Coordinate File             liquid-e070-v100.arc
@@ -808,9 +808,9 @@
  Instantaneous Values for Frame Saved at     39500 Dynamics Steps
 
  Current Time                79.00000000 Picosecond
- Current Potential        -8096.31335196 Kcal/mole
- Current Kinetic           2355.48289523 Kcal/mole
- Lattice Lengths           29.94997406     29.94997406     29.94997406
+ Current Potential        -8077.37116385 Kcal/mole
+ Current Kinetic           2426.12399065 Kcal/mole
+ Lattice Lengths           29.85513496     29.85513496     29.85513496
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     79
  Coordinate File             liquid-e070-v100.arc
@@ -818,9 +818,9 @@
  Instantaneous Values for Frame Saved at     40000 Dynamics Steps
 
  Current Time                80.00000000 Picosecond
- Current Potential        -8115.33830564 Kcal/mole
- Current Kinetic           2407.48208961 Kcal/mole
- Lattice Lengths           29.99898911     29.99898911     29.99898911
+ Current Potential        -8109.89391898 Kcal/mole
+ Current Kinetic           2455.80599818 Kcal/mole
+ Lattice Lengths           29.84010124     29.84010124     29.84010124
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     80
  Coordinate File             liquid-e070-v100.arc
@@ -828,9 +828,9 @@
  Instantaneous Values for Frame Saved at     40500 Dynamics Steps
 
  Current Time                81.00000000 Picosecond
- Current Potential        -8044.70805321 Kcal/mole
- Current Kinetic           2394.48724054 Kcal/mole
- Lattice Lengths           29.97532845     29.97532845     29.97532845
+ Current Potential        -8082.18587818 Kcal/mole
+ Current Kinetic           2461.09707902 Kcal/mole
+ Lattice Lengths           29.91150475     29.91150475     29.91150475
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     81
  Coordinate File             liquid-e070-v100.arc
@@ -838,9 +838,9 @@
  Instantaneous Values for Frame Saved at     41000 Dynamics Steps
 
  Current Time                82.00000000 Picosecond
- Current Potential        -8010.74106490 Kcal/mole
- Current Kinetic           2374.90520507 Kcal/mole
- Lattice Lengths           29.94809723     29.94809723     29.94809723
+ Current Potential        -8165.43464612 Kcal/mole
+ Current Kinetic           2375.16934107 Kcal/mole
+ Lattice Lengths           29.92541504     29.92541504     29.92541504
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     82
  Coordinate File             liquid-e070-v100.arc
@@ -848,9 +848,9 @@
  Instantaneous Values for Frame Saved at     41500 Dynamics Steps
 
  Current Time                83.00000000 Picosecond
- Current Potential        -8107.56410669 Kcal/mole
- Current Kinetic           2438.60070885 Kcal/mole
- Lattice Lengths           29.97545815     29.97545815     29.97545815
+ Current Potential        -8185.69913892 Kcal/mole
+ Current Kinetic           2374.67241710 Kcal/mole
+ Lattice Lengths           29.90186691     29.90186691     29.90186691
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     83
  Coordinate File             liquid-e070-v100.arc
@@ -858,9 +858,9 @@
  Instantaneous Values for Frame Saved at     42000 Dynamics Steps
 
  Current Time                84.00000000 Picosecond
- Current Potential        -7945.25081384 Kcal/mole
- Current Kinetic           2429.27378086 Kcal/mole
- Lattice Lengths           29.94384575     29.94384575     29.94384575
+ Current Potential        -8206.47676384 Kcal/mole
+ Current Kinetic           2407.14806036 Kcal/mole
+ Lattice Lengths           29.87544060     29.87544060     29.87544060
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     84
  Coordinate File             liquid-e070-v100.arc
@@ -868,9 +868,9 @@
  Instantaneous Values for Frame Saved at     42500 Dynamics Steps
 
  Current Time                85.00000000 Picosecond
- Current Potential        -8005.10953330 Kcal/mole
- Current Kinetic           2397.19411771 Kcal/mole
- Lattice Lengths           29.90563011     29.90563011     29.90563011
+ Current Potential        -8036.02645270 Kcal/mole
+ Current Kinetic           2448.21109765 Kcal/mole
+ Lattice Lengths           29.89291573     29.89291573     29.89291573
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     85
  Coordinate File             liquid-e070-v100.arc
@@ -878,9 +878,9 @@
  Instantaneous Values for Frame Saved at     43000 Dynamics Steps
 
  Current Time                86.00000000 Picosecond
- Current Potential        -8090.81333151 Kcal/mole
- Current Kinetic           2440.72693300 Kcal/mole
- Lattice Lengths           29.88425255     29.88425255     29.88425255
+ Current Potential        -8017.10322795 Kcal/mole
+ Current Kinetic           2391.84616086 Kcal/mole
+ Lattice Lengths           30.03647423     30.03647423     30.03647423
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     86
  Coordinate File             liquid-e070-v100.arc
@@ -888,9 +888,9 @@
  Instantaneous Values for Frame Saved at     43500 Dynamics Steps
 
  Current Time                87.00000000 Picosecond
- Current Potential        -8078.60777265 Kcal/mole
- Current Kinetic           2412.84288981 Kcal/mole
- Lattice Lengths           29.87803268     29.87803268     29.87803268
+ Current Potential        -8066.92275390 Kcal/mole
+ Current Kinetic           2429.48779445 Kcal/mole
+ Lattice Lengths           29.96775246     29.96775246     29.96775246
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     87
  Coordinate File             liquid-e070-v100.arc
@@ -898,9 +898,9 @@
  Instantaneous Values for Frame Saved at     44000 Dynamics Steps
 
  Current Time                88.00000000 Picosecond
- Current Potential        -8080.02354426 Kcal/mole
- Current Kinetic           2388.87139920 Kcal/mole
- Lattice Lengths           29.87017059     29.87017059     29.87017059
+ Current Potential        -8017.78461474 Kcal/mole
+ Current Kinetic           2434.50877577 Kcal/mole
+ Lattice Lengths           30.04602623     30.04602623     30.04602623
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     88
  Coordinate File             liquid-e070-v100.arc
@@ -908,9 +908,9 @@
  Instantaneous Values for Frame Saved at     44500 Dynamics Steps
 
  Current Time                89.00000000 Picosecond
- Current Potential        -8083.32074336 Kcal/mole
- Current Kinetic           2434.75282700 Kcal/mole
- Lattice Lengths           29.91399956     29.91399956     29.91399956
+ Current Potential        -8087.82601542 Kcal/mole
+ Current Kinetic           2390.14162237 Kcal/mole
+ Lattice Lengths           30.09415054     30.09415054     30.09415054
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     89
  Coordinate File             liquid-e070-v100.arc
@@ -918,9 +918,9 @@
  Instantaneous Values for Frame Saved at     45000 Dynamics Steps
 
  Current Time                90.00000000 Picosecond
- Current Potential        -7986.52909460 Kcal/mole
- Current Kinetic           2362.44148210 Kcal/mole
- Lattice Lengths           29.91629982     29.91629982     29.91629982
+ Current Potential        -8123.05693913 Kcal/mole
+ Current Kinetic           2436.53595841 Kcal/mole
+ Lattice Lengths           30.14290810     30.14290810     30.14290810
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     90
  Coordinate File             liquid-e070-v100.arc
@@ -928,9 +928,9 @@
  Instantaneous Values for Frame Saved at     45500 Dynamics Steps
 
  Current Time                91.00000000 Picosecond
- Current Potential        -8039.41457508 Kcal/mole
- Current Kinetic           2345.28039077 Kcal/mole
- Lattice Lengths           29.86823082     29.86823082     29.86823082
+ Current Potential        -8086.17973526 Kcal/mole
+ Current Kinetic           2435.18411063 Kcal/mole
+ Lattice Lengths           30.13159180     30.13159180     30.13159180
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     91
  Coordinate File             liquid-e070-v100.arc
@@ -938,9 +938,9 @@
  Instantaneous Values for Frame Saved at     46000 Dynamics Steps
 
  Current Time                92.00000000 Picosecond
- Current Potential        -8016.95635514 Kcal/mole
- Current Kinetic           2411.73340730 Kcal/mole
- Lattice Lengths           29.87769699     29.87769699     29.87769699
+ Current Potential        -7979.46358691 Kcal/mole
+ Current Kinetic           2353.06677417 Kcal/mole
+ Lattice Lengths           30.08175659     30.08175659     30.08175659
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     92
  Coordinate File             liquid-e070-v100.arc
@@ -948,9 +948,9 @@
  Instantaneous Values for Frame Saved at     46500 Dynamics Steps
 
  Current Time                93.00000000 Picosecond
- Current Potential        -8022.65200893 Kcal/mole
- Current Kinetic           2450.61869555 Kcal/mole
- Lattice Lengths           29.91398430     29.91398430     29.91398430
+ Current Potential        -8019.01606331 Kcal/mole
+ Current Kinetic           2394.36205612 Kcal/mole
+ Lattice Lengths           30.07452202     30.07452202     30.07452202
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     93
  Coordinate File             liquid-e070-v100.arc
@@ -958,9 +958,9 @@
  Instantaneous Values for Frame Saved at     47000 Dynamics Steps
 
  Current Time                94.00000000 Picosecond
- Current Potential        -8174.69535938 Kcal/mole
- Current Kinetic           2427.69479790 Kcal/mole
- Lattice Lengths           29.93752480     29.93752480     29.93752480
+ Current Potential        -8046.84708608 Kcal/mole
+ Current Kinetic           2394.06390829 Kcal/mole
+ Lattice Lengths           29.94923592     29.94923592     29.94923592
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     94
  Coordinate File             liquid-e070-v100.arc
@@ -968,9 +968,9 @@
  Instantaneous Values for Frame Saved at     47500 Dynamics Steps
 
  Current Time                95.00000000 Picosecond
- Current Potential        -8041.72982895 Kcal/mole
- Current Kinetic           2444.32193205 Kcal/mole
- Lattice Lengths           29.97827911     29.97827911     29.97827911
+ Current Potential        -8041.10228183 Kcal/mole
+ Current Kinetic           2396.49417910 Kcal/mole
+ Lattice Lengths           29.97924042     29.97924042     29.97924042
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     95
  Coordinate File             liquid-e070-v100.arc
@@ -978,9 +978,9 @@
  Instantaneous Values for Frame Saved at     48000 Dynamics Steps
 
  Current Time                96.00000000 Picosecond
- Current Potential        -8064.47695985 Kcal/mole
- Current Kinetic           2424.81520133 Kcal/mole
- Lattice Lengths           29.96919823     29.96919823     29.96919823
+ Current Potential        -8104.44375448 Kcal/mole
+ Current Kinetic           2377.39278664 Kcal/mole
+ Lattice Lengths           30.01621819     30.01621819     30.01621819
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     96
  Coordinate File             liquid-e070-v100.arc
@@ -988,9 +988,9 @@
  Instantaneous Values for Frame Saved at     48500 Dynamics Steps
 
  Current Time                97.00000000 Picosecond
- Current Potential        -8165.63152629 Kcal/mole
- Current Kinetic           2421.33662500 Kcal/mole
- Lattice Lengths           30.00304794     30.00304794     30.00304794
+ Current Potential        -8105.61450669 Kcal/mole
+ Current Kinetic           2312.03987861 Kcal/mole
+ Lattice Lengths           30.02990723     30.02990723     30.02990723
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     97
  Coordinate File             liquid-e070-v100.arc
@@ -998,9 +998,9 @@
  Instantaneous Values for Frame Saved at     49000 Dynamics Steps
 
  Current Time                98.00000000 Picosecond
- Current Potential        -8095.88551820 Kcal/mole
- Current Kinetic           2414.37005805 Kcal/mole
- Lattice Lengths           29.95524597     29.95524597     29.95524597
+ Current Potential        -8104.50461734 Kcal/mole
+ Current Kinetic           2369.08838940 Kcal/mole
+ Lattice Lengths           30.02751350     30.02751350     30.02751350
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     98
  Coordinate File             liquid-e070-v100.arc
@@ -1008,9 +1008,9 @@
  Instantaneous Values for Frame Saved at     49500 Dynamics Steps
 
  Current Time                99.00000000 Picosecond
- Current Potential        -8006.65998823 Kcal/mole
- Current Kinetic           2441.26603332 Kcal/mole
- Lattice Lengths           29.94666672     29.94666672     29.94666672
+ Current Potential        -8031.07197107 Kcal/mole
+ Current Kinetic           2368.00016553 Kcal/mole
+ Lattice Lengths           30.09668159     30.09668159     30.09668159
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                     99
  Coordinate File             liquid-e070-v100.arc
@@ -1018,15 +1018,15 @@
  Instantaneous Values for Frame Saved at     50000 Dynamics Steps
 
  Current Time               100.00000000 Picosecond
- Current Potential        -8134.86975223 Kcal/mole
- Current Kinetic           2452.04868844 Kcal/mole
- Lattice Lengths           29.92617226     29.92617226     29.92617226
+ Current Potential        -8018.11966900 Kcal/mole
+ Current Kinetic           2374.99272351 Kcal/mole
+ Lattice Lengths           30.08141136     30.08141136     30.08141136
  Lattice Angles            90.00000000     90.00000000     90.00000000
  Frame Number                    100
  Coordinate File             liquid-e070-v100.arc
 
- Performance:  ns/day              39.0048
-               Wall Time          221.5114
+ Performance:  ns/day              46.7358
+               Wall Time          184.8689
                Steps                 50000
                Updates                 100
                Time Step            2.0000
