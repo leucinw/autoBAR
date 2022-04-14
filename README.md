@@ -40,7 +40,7 @@ In the automated mode, this program will automatically go through all steps unti
 
 # Examples
 
-	Two example systems are located in `examples` folder. They should be easy to read and understand. 
+Two example systems are located in `examples` folder. They should be easy to read and understand. 
 
 # Notes
 
