@@ -327,6 +327,11 @@ def main():
   phase_key = {'liquid':liquidkeylines, 'gas':gaskeylines}
   phase_dynamic = {'liquid':liquidmdexe, 'gas':gasmdexe}
   
+  # check xyz files
+  lines = open(box).readlines()
+  natomliquid = int(lines[0].split()[0])
+  if natomliquid != len(lines)-2:
+    sys.exit(RED + f"[Error] Please provide box info in {box}" + ENDC)
   natomgas = int(open(lig).readlines()[0].split()[0])
   if natomgas == 1:
     gastotaltime = 0.0
