@@ -159,16 +159,16 @@ def bar():
             else:
               print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
   
-  # submit jobs to clusters 
-  for phase in phases:
-    phasedir = os.path.join(homedir, phase)
-    os.chdir(phasedir)
-    if phase == 'gas':
-      cmdstr = " ".join(gascmds)
-      os.system(f"python {submitexe} -c {cmdstr} -t CPU -nodes {' '.join(nodes)} -n 4")
-    if phase == 'liquid':
-      cmdstr = " ".join(liquidcmds)
-      os.system(f"python {submitexe} -c {cmdstr} -t GPU -nodes {' '.join(nodes)}")
+    # submit jobs to clusters 
+    for phase in phases:
+      phasedir = os.path.join(homedir, phase)
+      os.chdir(phasedir)
+      if phase == 'gas':
+        cmdstr = " ".join(gascmds)
+        os.system(f"python {submitexe} -c {cmdstr} -t CPU -nodes {' '.join(nodes)} -n 4")
+      if phase == 'liquid':
+        cmdstr = " ".join(liquidcmds)
+        os.system(f"python {submitexe} -c {cmdstr} -t GPU -nodes {' '.join(nodes)}")
   return
 
 def result():
