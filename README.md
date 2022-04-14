@@ -37,6 +37,11 @@ In the automated mode, this program will automatically go through all steps unti
   # Run `auto`: automatically run all the above commands
   python autoBAR.py auto
   ```
+
+# Examples
+
+	Two example systems are located in `examples` folder. They should be easy to read and understand. 
+
 # Notes
 
 * Suggested settings for HFE simulations
