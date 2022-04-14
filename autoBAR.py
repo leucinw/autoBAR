@@ -326,6 +326,11 @@ def main():
   phase_xyz = {'liquid':box, 'gas':lig}
   phase_key = {'liquid':liquidkeylines, 'gas':gaskeylines}
   phase_dynamic = {'liquid':liquidmdexe, 'gas':gasmdexe}
+  
+  natomgas = int(open(lig).readlines()[0].split()[0])
+  if natomgas == 1:
+    gastotaltime = 0.0
+    print(YELLOW + "[Warning] I set the simulation time to 0 since it is a single ion/atom" + ENDC)
   if gastotaltime == 0.0:
     ignoregas = 1
   else:
