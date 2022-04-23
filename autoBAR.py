@@ -157,7 +157,7 @@ def bar():
             if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
               gascmds.append(barstr)
             else:
-              print(GREEN + f" [Warning] {barfile} exist in {phase} folder!" + ENDC)
+              print(GREEN + f" [Warning] {barfile} exists in {phase} folder!" + ENDC)
   
     # submit jobs to clusters 
     for phase in phases:
@@ -172,7 +172,7 @@ def bar():
   return
 
 def result():
-  print(YELLOW + " Checking the completeness of the BAR analysis" + ENDC)
+  print(YELLOW + " Checking the completeness of the BAR analysis ..." + ENDC)
   if inputaction == 'auto':
     proceed = False
     while not proceed:
@@ -351,11 +351,9 @@ def main():
   actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result}
   if inputaction in actions.keys():
     actions[inputaction]()
-  elif inputaction == 'auto': 
+  else:
     for action in actions.keys():
       actions[action]()
-  else:
-    sys.exit(RED + f"[Error] {inputaction} does not supported!" + ENDC)
   return
 
 if __name__ == "__main__":

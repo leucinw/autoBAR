@@ -11,7 +11,7 @@ An automated tool for alchemical free energy simulation using polarizable AMOEBA
 
 Prepare the following 4 files:
 * `gas_xyz`: ligand tinker xyz file
-* `box_xyz`: ligand or ligand-protein in water
+* `box_xyz`: ligand or ligand-protein in water, with box info. in the second line
 * `parameters`: Tinker parameter file (see [Notes](#notes) for one-step perturbation function)
 * `settings.yaml`: settings read by autoBAR.py program. Please refer to the [example file here](https://github.com/leucinw/autoBAR/blob/main/dat/settings.yaml).
 
@@ -40,19 +40,40 @@ In the automated mode, this program will automatically go through all steps unti
 
 # Examples
 
-Two example systems are located in `examples` folder. They should be easy to read and understand. 
+Two example systems are located in `examples` folder. They should be easy to read and understand.
+
+* For the __Ion-HFE__ system, only the `liquid` phase is necessary
+	```
+	├── liquid
+	├── Na-water.xyz
+	├── Na.xyz
+	├── result.txt
+	├── settings.yaml
+	└── water03.prm
+	```
+
+* For the __Phenol-HFE__ system, both the `liquid` and `gas` phases are needed
+	```
+	├── amoeba09.prm
+	├── gas
+	├── liquid
+	├── phenol_solv.xyz
+	├── phenol.xyz
+	├── result.txt
+	└── settings.yaml
+	```
 
 # Notes
 
 * Suggested settings for HFE simulations
-  * `lambda_window`: courser
-  * `liquid_md_total_time`: 1.25 ns
-  * `liquid_md_time_step`: 2.0 fs
-  * `gas_md_total_time`: 1.25 ns
-  * `gas_md_time_step`: 0.1 fs
-  * `polar_eps`: 10e-5
+  * `lambda_window`: courser # This reduces the number of windows without losing much accuracy
+  * `liquid_md_total_time`: 1.25 ns # The last 4/5 of trajectories (1 ns) is used in BAR
+  * `liquid_md_time_step`: 2.0 fs # Good with RESPA integrator
+  * `gas_md_total_time`: 1.25 ns # The last 4/5 of trajectories (1 ns) is used in BAR
+  * `gas_md_time_step`: 0.1 fs # Gas phase stochastic dynamics
+  * `polar_eps`: 10e-5 # This is an important setting
 
 * One-step perturbation is supported 
-  * A `{fname}.prm_` file with small parameter perturbation need to be in the working directory
+  * An `{fname}.prm_` file with small parameter perturbation need to be in the working directory
   * No need modify the `settings.yaml` file
-  * This will be treated as the end state (two end states in HFE)
+  * This will be treated as the end state (two end states in HFE, excecpt for single ion)
