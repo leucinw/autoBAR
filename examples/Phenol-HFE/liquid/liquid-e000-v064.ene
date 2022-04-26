@@ -4,7 +4,7 @@
   ###                                                                      ### 
  ###            Tinker9  --  Software Tools for Molecular Design            ###
  ##                                                                          ##
- ##                      Version 1.0.0-rc  January 2021                      ##
+ ##                       Version 1.0.0-rc  April 2022                       ##
  ##                                                                          ##
  ##                 Copyright (c)  Zhi Wang & the Ponder Lab                 ##
  ###                           All Rights Reserved                          ###
@@ -12,9 +12,9 @@
    ##########################################################################  
      ######################################################################    
 
- Compiled at:  16:36:30  Sep 10 2021
- Commit Date:  Mon Aug 16 01:28:23 2021 -0500
- Commit:       b78a5351
+ Compiled at:  09:03:25  Apr 23 2022
+ Commit Date:  Wed Apr 20 16:43:24 2022 -0500
+ Commit:       9b5592d2
 
 
  Simulation Trajectory A and Thermodynamic State 0 :
@@ -31,37 +31,38 @@
 
  Free Energy Difference via FEP Method :
 
- Free Energy via Forward FEP               1.0045 +/-   0.0337 Kcal/mol
- Free Energy via Backward FEP              0.9675 +/-   0.0582 Kcal/mol
+ Free Energy via Forward FEP               1.1101 +/-   0.0362 Kcal/mol
+ Free Energy via Backward FEP              0.9087 +/-   0.0402 Kcal/mol
 
  Free Energy Difference via BAR Method :
 
- BAR Iteration   0                         1.0038 Kcal/mol
- BAR Iteration   1                         1.0028 Kcal/mol
- BAR Iteration   2                         1.0028 Kcal/mol
+ BAR Iteration   0                         1.0876 Kcal/mol
+ BAR Iteration   1                         1.0527 Kcal/mol
+ BAR Iteration   2                         1.0539 Kcal/mol
+ BAR Iteration   3                         1.0539 Kcal/mol
 
- Free Energy via BAR Iteration             1.0028 +/-   0.0411 Kcal/mol
- Free Energy via BAR Bootstrap             1.0030 +/-   0.0244 Kcal/mol
+ Free Energy via BAR Iteration             1.0539 +/-   0.0426 Kcal/mol
+ Free Energy via BAR Bootstrap             1.0541 +/-   0.0245 Kcal/mol
 
  Enthalpy from Potential Energy Averages :
 
- Average Energy for State 0            -7912.3998 +/-   2.8692 kcal/mol
- Average Energy for State 1            -7903.0640 +/-   2.9648 kcal/mol
- PdV Work Term for 1 Atm                   0.0006 +/-   0.0002 kcal/mol
- Enthalpy via Direct Estimate              9.3364 +/-   4.1257 Kcal/mol
+ Average Energy for State 0            -7910.0458 +/-   2.7719 kcal/mol
+ Average Energy for State 1            -7902.2894 +/-   2.8430 kcal/mol
+ PdV Work Term for 1 Atm                   0.0006 +/-   0.0004 kcal/mol
+ Enthalpy via Direct Estimate              7.7570 +/-   3.9637 Kcal/mol
 
  Enthalpy and Entropy via FEP Method :
 
- Enthalpy via Forward FEP                  0.1699 +/-   7.0654 Kcal/mol
- Entropy via Forward FEP                -0.002782 Kcal/mol/K
- Forward FEP -T*dS Value                   0.8346 Kcal/mol
+ Enthalpy via Forward FEP                  9.8998 +/-   7.9339 Kcal/mol
+ Entropy via Forward FEP                 0.029299 Kcal/mol/K
+ Forward FEP -T*dS Value                  -8.7897 Kcal/mol
 
- Enthalpy via Backward FEP                 8.2082 +/-   9.5762 Kcal/mol
- Entropy via Backward FEP                0.024136 Kcal/mol/K
- Backward FEP -T*dS Value                 -7.2407 Kcal/mol
+ Enthalpy via Backward FEP                -5.4599 +/-   7.4757 Kcal/mol
+ Entropy via Backward FEP               -0.021229 Kcal/mol/K
+ Backward FEP -T*dS Value                  6.3686 Kcal/mol
 
  Enthalpy and Entropy via BAR Method :
 
- Enthalpy via BAR Estimate                 3.9410 +/-   2.3721 Kcal/mol
- Entropy via BAR Estimate                0.009793 Kcal/mol/K
- BAR Estimate of -T*dS                    -2.9380 Kcal/mol
+ Enthalpy via BAR Estimate                 1.3937 +/-   2.4396 Kcal/mol
+ Entropy via BAR Estimate                0.001132 Kcal/mol/K
+ BAR Estimate of -T*dS                    -0.3396 Kcal/mol

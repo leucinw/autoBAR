@@ -95,19 +95,15 @@ def check_gpu_avail(node):
   return ava_cards 
 
 def submit_jobs(jobcmds, jobtype):
-  rtx30s = ['node36', 'node54', 'node102', 'node193', 'node206', \
-            'black', 'bme-black', 'pluto', 'bme-pluto', 'bme-mercury', 'mercury', \
-            'bme-mars', 'mars', 'bme-venus', 'venus', 'node103', 'node104', 'node105', \
-            'bme-rna', 'rna', 'bme-jupiter', 'jupiter', 'bme-earth', 'earth']
   njob_pointer = 0
   if jobtype == "CPU":
     for i in range(len(cpu_node_list)):
       if njob_pointer >= len(jobcmds): break
       if check_cpu_avail(cpu_node_list[i], nproc):
-        cmdstr = f'ssh {cpu_node_list[i]} "' + jobcmds[njob_pointer] + ' " &'
+        cmdstr = f"ssh {cpu_node_list[i]} '" + jobcmds[njob_pointer] +  "' &"
         subprocess.run(cmdstr, shell=True)
         jobcmds[njob_pointer] = 'x'
-        print(f"{cmdstr}")
+        print(f"   --> {cmdstr}")
         njob_pointer += 1
   else:
     for i in range(len(gpu_node_list)): 
@@ -119,9 +115,6 @@ def submit_jobs(jobcmds, jobtype):
           pci_bus_id = 'export CUDA_DEVICE_ORDER=PCI_BUS_ID'
           if njob_pointer < len(jobcmds):
             cmdstr = f"ssh {gpu_node_list[i]} '{pci_bus_id}; {cuda_device}; {jobcmds[njob_pointer]} ' &"
-            if gpu_node_list[i] in rtx30s:
-              if 'cuda10.2' in cmdstr:
-                cmdstr = cmdstr.replace('cuda10.2', 'cuda11.2')
             subprocess.run(cmdstr, shell=True)
             jobcmds[njob_pointer] = 'x'
             print(f"   --> {cmdstr}")

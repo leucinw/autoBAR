@@ -37,7 +37,6 @@ polar_eps: 0.00001            # polar-eps for AMOEBA induced dipole convergence
 # via `ssh`; see utils/submitTinker.py for details
 node_list:
   - node100
-  - bme-sugar
   - node194
   - node215
   - bme-mars

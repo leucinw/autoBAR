@@ -73,23 +73,23 @@ def dynamic():
       else:
         if phase == 'liquid':
           if liquidensemble == "NPT":
-            dynamiccmd = f" 'cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 4 {liquidT} {liquidP} > {logfile}' "
+            dynamiccmd = f" 'cd {phasedir}; source {tinkerenv}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 4 {liquidT} {liquidP} > {logfile}' "
             liquidcmds.append(dynamiccmd)
           if liquidensemble == "NVT":
-            dynamiccmd = f" 'cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 2 {liquidT} > {logfile}' "
+            dynamiccmd = f" 'cd {phasedir}; source {tinkerenv}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 2 {liquidT} > {logfile}' "
             liquidcmds.append(dynamiccmd)
         if phase == 'gas':
-          dynamiccmd = f" 'cd {phasedir}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {gastotalstep} {gastimestep} {gaswriteout} 2 {gastemperature} > {logfile}' "
+          dynamiccmd = f" 'cd {phasedir}; source {tinkerenv}; {phase_dynamic[phase]} {xyzfile} -key {keyfile} {gastotalstep} {gastimestep} {gaswriteout} 2 {gastemperature} > {logfile}' "
           gascmds.append(dynamiccmd)
     
   # submit jobs to clusters 
   for phase in phases:
     phasedir = os.path.join(homedir, phase)
     os.chdir(phasedir)
-    if phase == 'gas':
+    if (phase == 'gas') and (gascmds != []):
       cmdstr = " ".join(gascmds)
       os.system(f"python {submitexe} -c {cmdstr} -t CPU -nodes {' '.join(nodes)} -n 4")
-    if phase == 'liquid':
+    if (phase == 'liquid') and (liquidcmds != []):
       cmdstr = " ".join(liquidcmds)
       os.system(f"python {submitexe} -c {cmdstr} -t GPU -nodes {' '.join(nodes)}")
   return
@@ -134,7 +134,7 @@ def bar():
           outfile = fname0 + ".out"
           barfile = fname0 + ".bar"
           enefile = fname0 + ".ene"
-          barcmd1 = f"cd {phasedir}; {liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && "
+          barcmd1 = f"cd {phasedir}; source {tinkerenv}; {liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && "
           totalsnapshot = int(phase_simtime[phase]/liquidwriteout)
           startsnapshot = int(totalsnapshot/5.0) + 1
           barcmd2 = f"{liquidbarexe} 2 {barfile} {startsnapshot} {totalsnapshot} 1 {startsnapshot} {totalsnapshot} 1 > {enefile} "
@@ -148,7 +148,7 @@ def bar():
           outfile = fname1 + ".out"
           barfile = fname1 + ".bar"
           enefile = fname1 + ".ene"
-          barcmd1 = f"cd {phasedir}; {gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && "
+          barcmd1 = f"cd {phasedir}; source {tinkerenv}; {gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && "
           totalsnapshot = int(phase_simtime[phase]/liquidwriteout)
           startsnapshot = int(totalsnapshot/5.0) + 1
           barcmd2 = f"{gasbarexe} 2 {barfile} {startsnapshot} {totalsnapshot} 1 {startsnapshot} {totalsnapshot} 1 > {enefile} "
@@ -163,10 +163,10 @@ def bar():
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
       os.chdir(phasedir)
-      if phase == 'gas':
+      if (phase == 'gas') and (gascmds != []):
         cmdstr = " ".join(gascmds)
         os.system(f"python {submitexe} -c {cmdstr} -t CPU -nodes {' '.join(nodes)} -n 4")
-      if phase == 'liquid':
+      if (phase == 'liquid') and (liquidcmds != []):
         cmdstr = " ".join(liquidcmds)
         os.system(f"python {submitexe} -c {cmdstr} -t GPU -nodes {' '.join(nodes)}")
   return
@@ -268,6 +268,8 @@ def main():
     sys.exit(RED + "[Error] node_list must be provided" + ENDC) 
   global submitexe
   submitexe = os.path.join(rootdir, "utils", "submitTinker.py")
+  global tinkerenv 
+  tinkerenv = os.path.join(rootdir, "dat", "tinker.env")
   global orderparams
   orderparams = []
   lambdawindow = FEsimsettings["lambda_window"].upper()
@@ -292,9 +294,10 @@ def main():
   global phases, liquidkeylines
   phases = ['liquid']
   liquidkeylines = open(os.path.join(rootdir, "dat", "liquid.key")).readlines()
+  # tinker.env
   global liquidmdexe, liquidbarexe
-  liquidmdexe = "/home/liuchw/Softwares/tinkers/Tinker9-latest/build_cuda10.2/dynamic9.sh"
-  liquidbarexe = "/home/liuchw/Softwares/tinkers/Tinker9-latest/build_cuda10.2/bar9.sh"
+  liquidmdexe = '$DYNAMIC9' 
+  liquidbarexe = '$BAR9' 
   global phase_xyz, phase_key, phase_dynamic
   phase_xyz = {'liquid':box}
   phase_key = {'liquid':liquidkeylines}
@@ -313,10 +316,12 @@ def main():
 
   # gas phase specific settings
   global ignoregas
-  global gaskeylines,gasmdexe,gasbarexe
+  global gaskeylines
   gaskeylines = open(os.path.join(rootdir, "dat", "gas.key")).readlines()
-  gasmdexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/dynamic.x" 
-  gasbarexe = "/home/liuchw/Softwares/tinkers/Tinker-latest/source-C8/bar.x"
+  # tinker.env
+  global gasmdexe, gasbarexe
+  gasmdexe = '$DYNAMIC8' 
+  gasbarexe = '$BAR8' 
   global gastotaltime, gastimestep, gaswriteout, gastemperature, gastotalstep
   gastotaltime = FEsimsettings["gas_md_total_time"] 
   gastimestep = FEsimsettings["gas_md_time_step"] 
@@ -344,9 +349,10 @@ def main():
     ignoregas = 1
   else:
     ignoregas = 0
-  if (not os.path.isdir('gas')) and (ignoregas == 0):
-    os.system("mkdir gas")
+  if (ignoregas == 0):
     phases.append('gas')
+    if not os.path.isdir('gas'):
+      os.system("mkdir gas")
   
   actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result}
   if inputaction in actions.keys():
