@@ -1,11 +1,11 @@
 
 # autoBAR
 
-An automated tool for alchemical free energy simulation using polarizable AMOEBA and AMOEBA+ force fields with Tinker software packages.
+A light-weighted automation tool for alchemical free energy simulations with the [Bennett Acceptance Ratio (BAR)](https://en.wikipedia.org/wiki/Bennett_acceptance_ratio) method using the polarizable AMOEBA and AMOEBA+ force fields.
 
 # Prerequisite
-- python modules: `yaml` and `numpy`
-- compiled software: `Tinker` (for gas phase simulations) and `Tinker9` (for liquid/solution phase NPT/NVT simulations)
+- python modules: `yaml` and `numpy`. (Hint: one can use `pip` or `conda` to install easily)
+- compiled software: `Tinker` and `Tinker9`. (Note: Nothing need to do for Ren lab members).
 
 # How to setup 
 
