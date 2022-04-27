@@ -30,9 +30,6 @@ gas_md_time_step:  0.1        # Integration time step (in fs)
 gas_md_write_freq: 1.0        # Write out frequency (in ps)
 gas_md_temperature: 300.0     # Gas MD temperature (in Kelvin)
 
-# Force Field related settings
-polar_eps: 0.00001            # polar-eps for AMOEBA induced dipole convergence
-
 # Computer nodes to spread the jobs
 # via `ssh`; see utils/submitTinker.py for details
 node_list:

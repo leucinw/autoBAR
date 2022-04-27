@@ -34,8 +34,6 @@ def setup():
                 line = f'parameters     ../{perturbprm}\n'
               else:
                 line = f'parameters     ../{prm}\n'
-            if 'polar-eps ' in line.lower():
-              line = f'polar-eps {polareps} \n'
             fw.write(line)
           fw.write('\n')
           fw.write(f'ligand -1 {natom}\n')
@@ -260,8 +258,6 @@ def main():
   checkingtime = FEsimsettings["checking_time"]
   global natom
   natom = int(open(lig).readlines()[0].split()[0])
-  global polareps 
-  polareps = FEsimsettings["polar_eps"]
   global nodes
   nodes = FEsimsettings["node_list"]
   if nodes == None:
