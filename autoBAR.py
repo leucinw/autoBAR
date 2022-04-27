@@ -289,7 +289,12 @@ def main():
   # liquid phase specific settings 
   global phases, liquidkeylines
   phases = ['liquid']
-  liquidkeylines = open(os.path.join(rootdir, "dat", "liquid.key")).readlines()
+  try:
+    liquidkey = FEsimsettings['liquid_key']
+    print(YELLOW + f"[Warning] You are responsible for your {liquidkey}" + ENDC)
+  except:
+    liquidkey = os.path.join(rootdir, "dat", "liquid.key")
+  liquidkeylines = open(liquidkey).readlines()
   # tinker.env
   global liquidmdexe, liquidbarexe
   liquidmdexe = '$DYNAMIC9' 
@@ -313,7 +318,13 @@ def main():
   # gas phase specific settings
   global ignoregas
   global gaskeylines
-  gaskeylines = open(os.path.join(rootdir, "dat", "gas.key")).readlines()
+  try:
+    gaskey = FEsimsettings['gas_key']
+    print(YELLOW + f"[Warning] You are responsible for your {gaskey}" + ENDC)
+  except:
+    gaskey = os.path.join(rootdir, "dat", "gas.key")
+  
+  gaskeylines = open(gaskey).readlines()
   # tinker.env
   global gasmdexe, gasbarexe
   gasmdexe = '$DYNAMIC8' 
@@ -332,10 +343,11 @@ def main():
   lines = open(box).readlines()
   natomliquid = int(lines[0].split()[0])
   if natomliquid != len(lines)-2:
-    sys.exit(RED + f"[Error] Please provide box info in {box}" + ENDC)
-  [a,b,c] = lines[1].split()[0:3]
-  if min([float(a), float(b), float(c)]) < 30.0:
-    sys.exit(RED + f"[Error] Please provide a bigger box (>30*30*30)" + ENDC)
+    print(YELLOW + f"[Warning] No box info in {box}. Can be in liquid.key instead." + ENDC)
+  else:
+    [a,b,c] = lines[1].split()[0:3]
+    if min([float(a), float(b), float(c)]) < 30.0:
+      sys.exit(RED + f"[Error] Please provide a bigger box (>30*30*30)" + ENDC)
 
   natomgas = int(open(lig).readlines()[0].split()[0])
   if natomgas == 1:
