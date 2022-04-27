@@ -15,6 +15,8 @@ Prepare the following 4 files:
 * `parameters`: Tinker parameter file (see [Notes](#notes) for one-step perturbation function)
 * `settings.yaml`: settings read by autoBAR.py program. Please refer to the [example file here](https://github.com/leucinw/autoBAR/blob/main/dat/settings.yaml).
 
+__Note: User customized tinker key files are supported (see [here](https://github.com/leucinw/autoBAR/blob/main/dat/settings.yaml))__
+
 # How to run 
 
 To make it flexible to use, this program was designed to be run in either interactive or automated mode. 
