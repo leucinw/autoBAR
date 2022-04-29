@@ -15,9 +15,10 @@ copy_arc_for_perturb: YES     # Only used if a "xxx.prm_" file exists. YES/True:
 gas_xyz: final.xyz            # Ligand/small molecule tinker xyz file
 box_xyz: box.xyz              # Simulation box tinker xyz file, with box information
 parameters: final.prm         # Tinker parameter file
-## Files optionally needed 
+## Files optionally needed (comment out if necessary) 
 liquid_key: liquid.key        # Optional. User's customized liquid key file
-gas_key: gas.key              # optional. User's customized gas key file
+gas_key: gas.key              # Optional. User's customized gas key file
+lambda_window_file: x.dat     # Optional. User's customized lambda window file
 
 # Molecular dynamics simulation settings
 ## liquid (solution) phase

@@ -15,14 +15,9 @@ import numpy as np
 from datetime import datetime
 from utils.checkautobar import *
 
-# color
-RED = '\033[91m'
-ENDC = '\033[0m'
-GREEN = '\033[92m'
-YELLOW = '\33[93m'
-
 def setup():
   for phase in phases:
+    os.system(f"rm -f {phase}/*.xyz {phase}/*.key")
     if not (ignoregas == 1 and phase == 'gas'):
       for i in range(len(orderparams)):
         elb, vlb = orderparams[i]
@@ -240,6 +235,13 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('act', help = "Actions to take.", choices = ['setup', 'dynamic', 'bar', 'result', 'auto'], type = str.lower) 
   
+  # colors for screen output
+  global RED, ENDC, GREEN, YELLOW
+  RED = '\033[91m'
+  ENDC = '\033[0m'
+  GREEN = '\033[92m'
+  YELLOW = '\33[93m'
+
   # global settings 
   global inputaction
   inputaction = vars(parser.parse_args())['act']
@@ -273,6 +275,13 @@ def main():
     orderprmfile = os.path.join(rootdir, "dat", "orderparams_courser")
   else:
     orderprmfile = os.path.join(rootdir, "dat", "orderparams_default")
+  # user specified order parameter file 
+  try:
+    orderprmfile = FEsimsettings['lambda_window_file']
+    print(YELLOW + f" [Warning] You are responsible for your {orderprmfile}" + ENDC)
+  except:
+    print(GREEN + f" [GOOD] You are using lambda window settings from {orderprmfile}" + ENDC) 
+
   for line in open(orderprmfile).readlines():
     if "#" not in line:
       d = line.split()
