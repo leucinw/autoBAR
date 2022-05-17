@@ -29,10 +29,12 @@ def checkdynamic(liquidtotaltime, gastotaltime, phases, orderparams, homedir):
           if "Simulation Time" in line:
             simtime = float(line.split()[2])
         if (simtime == phase_simtime[phase]):
-          print(GREEN + "  [" + fname + f"]: {simtime}/{phase_simtime[phase]} ps!" + ENDC)
+          per = int(simtime/phase_simtime[phase]*100)
+          print(GREEN + f"{fname:>20s}: " + u'\u2584'*per  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(True)
         else:
-          print(RED + "  [" + fname + f"]: {simtime}/{phase_simtime[phase]} ps!" + ENDC)
+          per = int(simtime/phase_simtime[phase]*100)
+          print(YELLOW + f"{fname:>20s}: " + u'\u2584'*per  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(False) 
       else:
         if gastotaltime == 0:
