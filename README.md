@@ -1,5 +1,5 @@
 
-# autoBAR
+# autoBAR: Free Energy Simulator with Tinker Software Packages 
 
 A light-weighted automation tool for alchemical free energy simulations with the [Bennett Acceptance Ratio (BAR)](https://en.wikipedia.org/wiki/Bennett_acceptance_ratio) method using the polarizable AMOEBA and AMOEBA+ force fields.
 
@@ -67,13 +67,12 @@ Two example systems are located in `examples` folder. They should be easy to rea
 
 # Notes
 
-* Suggested settings for HFE simulations
+* Minimal settings for HFE simulations
   * `lambda_window`: courser # This reduces the number of windows without losing much accuracy
   * `liquid_md_total_time`: 1.25 ns # The last 4/5 of trajectories (1 ns) is used in BAR
   * `liquid_md_time_step`: 2.0 fs # Good with RESPA integrator
   * `gas_md_total_time`: 1.25 ns # The last 4/5 of trajectories (1 ns) is used in BAR
   * `gas_md_time_step`: 0.1 fs # Gas phase stochastic dynamics
-  * `polar_eps`: 10e-5 # This is an important setting
 
 * One-step perturbation is supported 
   * An `{fname}.prm_` file with small parameter perturbation need to be in the working directory
