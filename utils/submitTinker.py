@@ -81,7 +81,7 @@ def check_gpu_avail(node):
       if r.split()[1].isdigit():
         tot_cards.append(r.split()[1])
     # tinker9/dynamic9/bar9 is for Tinker9
-    # dynamic is for openmm
+    # dynamic is for tinker-openmm
     # gmx is for gromacs
     if ('tinker9' in r) or ('dynamic' in r) or ('bar9' in r) or ('dynamic9' in r) or ('gmx' in r):
       occ_cards.append(r.split()[1])
