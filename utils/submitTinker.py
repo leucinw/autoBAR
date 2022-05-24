@@ -65,33 +65,46 @@ def check_cpu_avail(node, nproc_required):
   return avail
 
 def check_gpu_avail(node):
-  sp_ret = '  '
+  sp_ret0 = '  '
+  sp_ret1 = '  '
   try:
-    # occupied nproc
+    cmd = f'ssh {node} "nvidia-smi -a" 2>/dev/null'
+    sp_ret0 = subprocess.check_output(cmd, timeout=10.0, shell=True).decode("utf-8").split('\n')[:-1]
     cmd = f'ssh {node} "nvidia-smi" 2>/dev/null'
-    sp_ret = subprocess.check_output(cmd, timeout=10.0, shell=True).decode("utf-8").split('\n')[:-1]
+    sp_ret1 = subprocess.check_output(cmd, timeout=10.0, shell=True).decode("utf-8").split('\n')[:-1]
   except:
     pass
 
   tot_cards = []
   occ_cards = []
 
-  for r in sp_ret:
-    if 'N/A' in r:
-      if r.split()[1].isdigit():
-        tot_cards.append(r.split()[1])
-    # tinker9/dynamic9/bar9 is for Tinker9
-    # dynamic is for tinker-openmm
-    # gmx is for gromacs
-    if ('tinker9' in r) or ('dynamic' in r) or ('bar9' in r) or ('dynamic9' in r) or ('gmx' in r):
+  twojobs = False
+  for r in sp_ret0:
+    if ("Product Name" in r):
+      if ('RTX 3070' in r) or ('RTX 3080' in r):
+        twojobs = True
+  
+  for r in sp_ret0:
+    if 'Attached GPU' in r:
+      ncard = int(r.split()[-1])
+    
+  for i in range(ncard):  
+    tot_cards.append(str(i))
+    if twojobs:
+      tot_cards.append(str(i))
+  
+  # tinker9/dynamic9/bar9 is for Tinker9
+  # dynamic is for openmm
+  # gmx is for gromacs
+  for r in sp_ret1:        
+    if ('tinker9' in r) or ('dynamic' in r) or ('dynamic9' in r) or ('gmx' in r) or ('bar9' in r) or ('python' in r):
       occ_cards.append(r.split()[1])
-  tot_cards = list(set(tot_cards)) 
+  
   ava_cards = tot_cards
+  
   if occ_cards != []:
-    ava_cards = []
-    for c in tot_cards:
-      if c not in occ_cards:
-        ava_cards.append(c)
+    for c in occ_cards:
+      ava_cards.remove(c)
   return ava_cards 
 
 def submit_jobs(jobcmds, jobtype):
