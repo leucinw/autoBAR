@@ -14,9 +14,11 @@ import subprocess
 import numpy as np
 from datetime import datetime
 from utils.checkautobar import *
+from utils.elescale import *
 
 def setup():
   for phase in phases:
+    xyzfile = phase_xyz[phase]
     os.system(f"rm -f {phase}/*.xyz {phase}/*.key")
     if not (ignoregas == 1 and phase == 'gas'):
       for i in range(len(orderparams)):
@@ -35,8 +37,18 @@ def setup():
           if (elb*vlb > 1.0):
             elb = 1.0
             vlb = 1.0
-          fw.write(f'ele-lambda {elb}\n')
+          
+          if manualelescale:
+            fw.write('ele-lambda 1.0\n')
+          else:
+            fw.write(f'ele-lambda {elb}\n')
           fw.write(f'vdw-lambda {vlb}\n')
+          
+          if manualelescale:
+            scaledprms = scaledownele(phase_xyz['gas'], prm, elb)
+            fw.write(f'\n# scale down electrostatic related parameters by {elb}\n')
+            for s in scaledprms:
+              fw.write(f'{s}\n')
             
         linkxyz = f"ln -sf {homedir}/{phase_xyz[phase]} {homedir}/{phase}/{fname}.xyz"
         movekey = f"mv {fname}.key ./{phase}"
@@ -282,6 +294,12 @@ def main():
   except:
     print(GREEN + f" [GOOD] You are using lambda window settings from {orderprmfile}" + ENDC) 
 
+  global manualelescale
+  try:
+    manualelescale = FEsimsettings['manual_ele_scale']
+  except:
+    manualelescale = False 
+  
   for line in open(orderprmfile).readlines():
     if "#" not in line:
       d = line.split()
