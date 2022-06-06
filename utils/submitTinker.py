@@ -84,6 +84,8 @@ def check_gpu_avail(node):
       if ('RTX 3070' in r) or ('RTX 3080' in r):
         twojobs = True
   
+  twojobs = False 
+  ncard = 0
   for r in sp_ret0:
     if 'Attached GPU' in r:
       ncard = int(r.split()[-1])
@@ -104,7 +106,8 @@ def check_gpu_avail(node):
   
   if occ_cards != []:
     for c in occ_cards:
-      ava_cards.remove(c)
+      if c in ava_cards:
+        ava_cards.remove(c)
   return ava_cards 
 
 def submit_jobs(jobcmds, jobtype):
