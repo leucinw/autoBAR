@@ -262,7 +262,7 @@ def result():
     fo.close()
   return
 
-def main():
+if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument('act', help = "Actions to take.", choices = ['setup', 'dynamic', 'bar', 'result', 'auto'], type = str.lower) 
   
@@ -425,7 +425,3 @@ def main():
   else:
     for action in actions.keys():
       actions[action]()
-  return
-
-if __name__ == "__main__":
-  main()
