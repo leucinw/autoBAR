@@ -6,43 +6,43 @@
 #===================================
 
 import os
+import subprocess
 
 RED = '\033[91m'
 ENDC = '\033[0m'
 GREEN = '\033[92m'
 YELLOW = '\33[93m'
 
-def checkdynamic(liquidtotaltime, gastotaltime, phases, orderparams, homedir):
-  statuslist = [] 
-  phase_simtime = {'liquid':1000.0*liquidtotaltime, 'gas':1000.0*gastotaltime}
+def checkdynamic(liquidfirstline, liquidtotalsnapshot, gasfirstline, gastotalsnapshot, phases, orderparams, homedir):
+  statuslist = []
+  phase_firstline = {'liquid': liquidfirstline, 'gas':gasfirstline}
+  phase_simsnapshot = {'liquid': liquidtotalsnapshot, 'gas':gastotalsnapshot}
   for phase in phases:
     for i in range(len(orderparams)):
       elb, vlb = orderparams[i]
       fname = "%s-e%s-v%s"%(phase, "%03d"%int(elb*100), "%03d"%int(vlb*100))
-      logfile = fname + ".log"
-      if os.path.isfile(os.path.join(homedir, phase, logfile)):
-        lines = open(os.path.join(homedir, phase, logfile)).readlines()
-        simtime = 0.0
-        for line in lines[-20:]:
-          if "Current Time" in line:
-            simtime = float(line.split()[2])
-          if "Simulation Time" in line:
-            simtime = float(line.split()[2])
-        if (simtime == phase_simtime[phase]):
-          per = int(simtime/phase_simtime[phase]*100)
+      arcfile = fname + ".arc"
+      if os.path.isfile(os.path.join(homedir, phase, arcfile)):
+        simsnapshot = 0
+        # get the simulation snapshots here
+        cmd = f"grep '{phase_firstline[phase]}' {os.path.join(homedir, phase, arcfile)} | wc -l"
+        checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
+        simsnapshot = int(checkstr)
+        if (simsnapshot == phase_simsnapshot[phase]):
+          per = int(simsnapshot/phase_simsnapshot[phase]*100)
           print(GREEN + f"{fname:>20s}: " + u'\u2584'*per  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(True)
         else:
-          per = int(simtime/phase_simtime[phase]*100)
+          per = int(simsnapshot/phase_simsnapshot[phase]*100)
           print(YELLOW + f"{fname:>20s}: " + u'\u2584'*per  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(False) 
       else:
-        if gastotaltime == 0:
+        if gastotalsnapshot == 0:
           statuslist.append(True)
         else:
           statuslist.append(False)
   completed = all(statuslist)
-  return completed, phase_simtime
+  return completed, phase_simsnapshot
 
 def checkbar(phases, orderparams, homedir, ignoregas):
   statuslist = []
