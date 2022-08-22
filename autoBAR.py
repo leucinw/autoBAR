@@ -128,14 +128,14 @@ def bar():
   if inputaction == "auto":
     proceed = False
     while not proceed: 
-      proceed, phase_simtime = checkdynamic(liquidtotaltime, gastotaltime, phases, checkorderparams, homedir)
+      proceed, phase_simsnapshot = checkdynamic(liquidfirstline, liquidtotalsnapshot, gasfirstline, gastotalsnapshot, phases, checkorderparams, homedir)
       if proceed:
         break
       now = datetime.now().strftime("%b %d %Y %H:%M:%S")
       print(YELLOW + f" [{now}] Waiting for dynamic jobs to finish ..." + ENDC)
       time.sleep(checkingtime)
   else:
-    proceed, phase_simtime = checkdynamic(liquidtotaltime, gastotaltime, phases, checkorderparams, homedir)
+    proceed, phase_simsnapshot = checkdynamic(liquidfirstline, liquidtotalsnapshot, gasfirstline, gastotalsnapshot, phases, checkorderparams, homedir)
     
   if proceed:
     liquidcmds = []
@@ -159,9 +159,8 @@ def bar():
           barfile = fname0 + ".bar"
           enefile = fname0 + ".ene"
           barcmd1 = f"cd {phasedir}; source {tinkerenv}; {liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && "
-          totalsnapshot = int(phase_simtime[phase]/liquidwriteout)
-          startsnapshot = int(totalsnapshot/5.0) + 1
-          barcmd2 = f"{liquidbarexe} 2 {barfile} {startsnapshot} {totalsnapshot} 1 {startsnapshot} {totalsnapshot} 1 > {enefile} "
+          startsnapshot = int(liquidtotalsnapshot/5.0) + 1
+          barcmd2 = f"{liquidbarexe} 2 {barfile} {startsnapshot} {liquidtotalsnapshot} 1 {startsnapshot} {liquidtotalsnapshot} 1 > {enefile} "
           barstr = f" '{barcmd1} {barcmd2} ' "
           if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
             liquidcmds.append(barstr)
@@ -173,9 +172,8 @@ def bar():
           barfile = fname1 + ".bar"
           enefile = fname1 + ".ene"
           barcmd1 = f"cd {phasedir}; source {tinkerenv}; {gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && "
-          totalsnapshot = int(phase_simtime[phase]/gaswriteout)
-          startsnapshot = int(totalsnapshot/5.0) + 1
-          barcmd2 = f"{gasbarexe} 2 {barfile} {startsnapshot} {totalsnapshot} 1 {startsnapshot} {totalsnapshot} 1 > {enefile} "
+          startsnapshot = int(gastotalsnapshot/5.0) + 1
+          barcmd2 = f"{gasbarexe} 2 {barfile} {startsnapshot} {gastotalsnapshot} 1 {startsnapshot} {gastotalsnapshot} 1 > {enefile} "
           barstr = f" '{barcmd1} {barcmd2} ' "
           if gastotaltime != 0:
             if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
@@ -360,7 +358,7 @@ if __name__ == "__main__":
   phase_xyz = {'liquid':box}
   phase_key = {'liquid':liquidkeylines}
   phase_dynamic = {'liquid':liquidmdexe}
-  global liquidtotaltime, liquidtimestep, liquidwriteout, liquidtotalstep
+  global liquidtotaltime, liquidtimestep, liquidwriteout, liquidtotalstep, liquidtotalsnapshot
   global liquidT, liquidP, liquidensemble
   liquidtotaltime = FEsimsettings["liquid_md_total_time"] 
   liquidtimestep = FEsimsettings["liquid_md_time_step"] 
@@ -369,6 +367,7 @@ if __name__ == "__main__":
   liquidP = FEsimsettings["liquid_md_pressure"]
   liquidensemble = FEsimsettings["liquid_md_ensemble"].upper()
   liquidtotalstep = int((1000000.0*liquidtotaltime)/liquidtimestep)
+  liquidtotalsnapshot = int(1000*liquidtotaltime/liquidwriteout)
   if not os.path.isdir('liquid'):
     os.system("mkdir liquid")
 
@@ -386,18 +385,21 @@ if __name__ == "__main__":
   global gasmdexe, gasbarexe
   gasmdexe = '$DYNAMIC8' 
   gasbarexe = '$BAR8' 
-  global gastotaltime, gastimestep, gaswriteout, gastemperature, gastotalstep
+  global gastotaltime, gastimestep, gaswriteout, gastemperature, gastotalstep, gastotalsnapshot
   gastotaltime = FEsimsettings["gas_md_total_time"] 
   gastimestep = FEsimsettings["gas_md_time_step"] 
   gastemperature = FEsimsettings["gas_md_temperature"] 
   gaswriteout = FEsimsettings["gas_md_write_freq"]
   gastotalstep = int((1000000.0*gastotaltime)/gastimestep)
+  gastotalsnapshot = int(1000*gastotaltime/gaswriteout)
   phase_xyz = {'liquid':box, 'gas':lig}
   phase_key = {'liquid':liquidkeylines, 'gas':gaskeylines}
   phase_dynamic = {'liquid':liquidmdexe, 'gas':gasmdexe}
   
   # check xyz files
   lines = open(box).readlines()
+  global liquidfirstline
+  liquidfirstline  = '^' + lines[0][:-1] + '$'
   natomliquid = int(lines[0].split()[0])
   if natomliquid != len(lines)-2:
     print(YELLOW + f"[Warning] No box info in {box}. Can be in liquid.key instead." + ENDC)
@@ -405,8 +407,10 @@ if __name__ == "__main__":
     [a,b,c] = lines[1].split()[0:3]
     if min([float(a), float(b), float(c)]) < 30.0:
       sys.exit(RED + f"[Error] Please provide a bigger box (>30*30*30)" + ENDC)
-
-  natomgas = int(open(lig).readlines()[0].split()[0])
+  global gasfirstline
+  lines = open(lig).readlines()
+  gasfirstline  = '^' + lines[0][:-1] + '$'
+  natomgas = int(lines[0].split()[0])
   if natomgas == 1:
     gastotaltime = 0.0
     print(YELLOW + "[Warning] I set the simulation time to 0 since it is a single ion/atom" + ENDC)
