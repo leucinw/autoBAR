@@ -13,9 +13,8 @@ ENDC = '\033[0m'
 GREEN = '\033[92m'
 YELLOW = '\33[93m'
 
-def checkdynamic(liquidfirstline, liquidtotalsnapshot, gasfirstline, gastotalsnapshot, phases, orderparams, homedir):
+def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, homedir):
   statuslist = []
-  phase_firstline = {'liquid': liquidfirstline, 'gas':gasfirstline}
   phase_simsnapshot = {'liquid': liquidtotalsnapshot, 'gas':gastotalsnapshot}
   for phase in phases:
     for i in range(len(orderparams)):
@@ -25,7 +24,10 @@ def checkdynamic(liquidfirstline, liquidtotalsnapshot, gasfirstline, gastotalsna
       if os.path.isfile(os.path.join(homedir, phase, arcfile)):
         simsnapshot = 0
         # get the simulation snapshots here
-        cmd = f"grep '{phase_firstline[phase]}' {os.path.join(homedir, phase, arcfile)} | wc -l"
+        cmd = f"head -n1 {os.path.join(homedir, phase, arcfile)} "
+        checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
+        firstline = '^' + checkstr.replace('\n', '$')
+        cmd = f"grep '{firstline}' {os.path.join(homedir, phase, arcfile)} | wc -l"
         checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
         simsnapshot = int(checkstr)
         if (simsnapshot == phase_simsnapshot[phase]):

@@ -103,18 +103,22 @@ def dynamic():
     if (phase == 'gas') and (gasshs != []):
       if os.getlogin() == 'liuchw':
         shstr = f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(gasshs)} -t CPU -n 4 -p {phasedir}"
+        print(GREEN + ' ' + shstr + ENDC)
         with open(scriptfile, 'w') as f:
           f.write(shstr)
       else:  
         shstr = f"python {submitexe} -x {' '.join(gasshs)} -t CPU -nodes {' '.join(nodes)} -n 4 -p {phasedir}"
+        print(GREEN + ' ' + shstr + ENDC)
         os.system(shstr)
     if (phase == 'liquid') and (liquidshs != []):
       if os.getlogin() == 'liuchw':
         shstr = f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(liquidshs)} -t GPU -p {phasedir}"
+        print(GREEN + ' ' + shstr + ENDC)
         with open(scriptfile, 'w') as f:
           f.write(shstr)
       else:  
         shstr = f"python {submitexe} -x {' '.join(liquidshs)} -t GPU -nodes {' '.join(nodes)} -p {phasedir}"
+        print(GREEN + ' ' + shstr + ENDC)
         os.system(shstr)
   return
 
@@ -128,29 +132,35 @@ def bar():
   if inputaction == "auto":
     proceed = False
     while not proceed: 
-      proceed, phase_simsnapshot = checkdynamic(liquidfirstline, liquidtotalsnapshot, gasfirstline, gastotalsnapshot, phases, checkorderparams, homedir)
+      proceed, phase_simsnapshot = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir)
       if proceed:
         break
       now = datetime.now().strftime("%b %d %Y %H:%M:%S")
       print(YELLOW + f" [{now}] Waiting for dynamic jobs to finish ..." + ENDC)
       time.sleep(checkingtime)
   else:
-    proceed, phase_simsnapshot = checkdynamic(liquidfirstline, liquidtotalsnapshot, gasfirstline, gastotalsnapshot, phases, checkorderparams, homedir)
+    proceed, phase_simsnapshot = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir)
     
   if proceed:
-    liquidcmds = []
-    gascmds = []
+    liquidshs = []
+    gasshs = []
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
       os.chdir(phasedir)
       for i in range(0,len(orderparams)-1,1):
         elb0, vlb0 = orderparams[i]
         elb1, vlb1 = orderparams[i+1]
-        fname0 = "%s-e%s-v%s"%(phase, "%03d"%int(elb0*100), "%03d"%int(vlb0*100))
-        fname1 = "%s-e%s-v%s"%(phase, "%03d"%int(elb1*100), "%03d"%int(vlb1*100))
+        elb0 = "%03d"%int(elb0*100)
+        elb1 = "%03d"%int(elb1*100)
+        vlb0 = "%03d"%int(vlb0*100)
+        vlb1 = "%03d"%int(vlb1*100)
+        fname0 = "%s-e%s-v%s"%(phase, elb0, vlb0)
+        fname1 = "%s-e%s-v%s"%(phase, elb1, vlb1)
         arcfile0 = fname0 + ".arc"
         arcfile1 = fname1 + ".arc"
-        if (elb1*vlb1 > 1.0) and copyarcforperturb:
+        liquidbarname = f"bar_e{elb0}-v{vlb0}_e{elb1}-v{vlb1}.sh"
+        gasbarname = f"bar_e{elb1}-v{vlb1}_e{elb0}-v{vlb0}.sh"
+        if (int(elb1)*int(vlb1) > 10000) and copyarcforperturb:
           linkarc = f"ln -sf {arcfile0} {arcfile1}"
           os.system(linkarc)
         if phase == 'liquid':
@@ -158,12 +168,13 @@ def bar():
           outfile = fname0 + ".out"
           barfile = fname0 + ".bar"
           enefile = fname0 + ".ene"
-          barcmd1 = f"cd {phasedir}; source {tinkerenv}; {liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && "
           startsnapshot = int(liquidtotalsnapshot/5.0) + 1
-          barcmd2 = f"{liquidbarexe} 2 {barfile} {startsnapshot} {liquidtotalsnapshot} 1 {startsnapshot} {liquidtotalsnapshot} 1 > {enefile} "
-          barstr = f" '{barcmd1} {barcmd2} ' "
           if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-            liquidcmds.append(barstr)
+            with open(liquidbarname, 'w') as f:
+              f.write(f"source {tinkerenv}\n")
+              f.write(f"{liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && \n")
+              f.write(f"{liquidbarexe} 2 {barfile} {startsnapshot} {liquidtotalsnapshot} 1 {startsnapshot} {liquidtotalsnapshot} 1 > {enefile} \n")
+              liquidshs.append(barname)
           else:
             print(GREEN + f" [Warning] {barfile} exist in {phase} folder! " + ENDC)
         if phase == 'gas':
@@ -171,13 +182,15 @@ def bar():
           outfile = fname1 + ".out"
           barfile = fname1 + ".bar"
           enefile = fname1 + ".ene"
-          barcmd1 = f"cd {phasedir}; source {tinkerenv}; {gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && "
           startsnapshot = int(gastotalsnapshot/5.0) + 1
-          barcmd2 = f"{gasbarexe} 2 {barfile} {startsnapshot} {gastotalsnapshot} 1 {startsnapshot} {gastotalsnapshot} 1 > {enefile} "
-          barstr = f" '{barcmd1} {barcmd2} ' "
+          
           if gastotaltime != 0:
             if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
-              gascmds.append(barstr)
+              with open(gasbarname, 'w') as f:
+                f.write(f"source {tinkerenv}\n")
+                f.write(f"{gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && \n")
+                f.write(f"{gasbarexe} 2 {barfile} {startsnapshot} {gastotalsnapshot} 1 {startsnapshot} {gastotalsnapshot} 1 > {enefile} \n")
+                gasshs.append(barname)
             else:
               print(GREEN + f" [Warning] {barfile} exists in {phase} folder!" + ENDC)
   
@@ -185,12 +198,16 @@ def bar():
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
       os.chdir(phasedir)
-      if (phase == 'gas') and (gascmds != []):
-        cmdstr = " ".join(gascmds)
-        os.system(f"python {submitexe} -c {cmdstr} -t CPU -nodes {' '.join(nodes)} -n 4")
-      if (phase == 'liquid') and (liquidcmds != []):
-        cmdstr = " ".join(liquidcmds)
-        os.system(f"python {submitexe} -c {cmdstr} -t GPU -nodes {' '.join(nodes)}")
+      if (phase == 'liquid') and (liquidshs != []):
+        if os.getlogin() == 'liuchw':
+          os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(liquidshs)} -t GPU -p {phasedir}")
+        else:
+          os.system(f"python {submitexe} -x {' '.join(liquidshs)} -t GPU -p {phasedir} -nodes {' '.join(nodes)}")
+      if (phase == 'gas') and (gasshs != []):
+        if os.getlogin() == 'liuchw':
+          os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(gasshs)} -t CPU -n 4 -p {phasedir}")
+        else:
+          os.system(f"python {submitexe} -x {' '.join(gasshs)} -t CPU -n 4 -p {phasedir} -nodes {' '.join(nodes)}")
   return
 
 def result():
@@ -290,7 +307,13 @@ if __name__ == "__main__":
   global natom
   natom = int(open(lig).readlines()[0].split()[0])
   global nodes
-  nodes = FEsimsettings["node_list"]
+  try:
+    nodes = FEsimsettings["node_list"]
+  except:
+    if os.getlogin() != 'liuchw':
+      sys.exit(RED + "node_list must be provided" + ENDC)
+    else:
+      pass
   
   # special list for liuchw
   if os.getlogin() == 'liuchw':
@@ -398,8 +421,6 @@ if __name__ == "__main__":
   
   # check xyz files
   lines = open(box).readlines()
-  global liquidfirstline
-  liquidfirstline  = '^' + lines[0][:-1] + '$'
   natomliquid = int(lines[0].split()[0])
   if natomliquid != len(lines)-2:
     print(YELLOW + f"[Warning] No box info in {box}. Can be in liquid.key instead." + ENDC)
@@ -407,9 +428,7 @@ if __name__ == "__main__":
     [a,b,c] = lines[1].split()[0:3]
     if min([float(a), float(b), float(c)]) < 30.0:
       sys.exit(RED + f"[Error] Please provide a bigger box (>30*30*30)" + ENDC)
-  global gasfirstline
   lines = open(lig).readlines()
-  gasfirstline  = '^' + lines[0][:-1] + '$'
   natomgas = int(lines[0].split()[0])
   if natomgas == 1:
     gastotaltime = 0.0
