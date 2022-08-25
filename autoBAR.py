@@ -174,7 +174,7 @@ def bar():
               f.write(f"source {tinkerenv}\n")
               f.write(f"{liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && \n")
               f.write(f"{liquidbarexe} 2 {barfile} {startsnapshot} {liquidtotalsnapshot} 1 {startsnapshot} {liquidtotalsnapshot} 1 > {enefile} \n")
-              liquidshs.append(barname)
+              liquidshs.append(liquidbarname)
           else:
             print(GREEN + f" [Warning] {barfile} exist in {phase} folder! " + ENDC)
         if phase == 'gas':
@@ -190,7 +190,7 @@ def bar():
                 f.write(f"source {tinkerenv}\n")
                 f.write(f"{gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && \n")
                 f.write(f"{gasbarexe} 2 {barfile} {startsnapshot} {gastotalsnapshot} 1 {startsnapshot} {gastotalsnapshot} 1 > {enefile} \n")
-                gasshs.append(barname)
+                gasshs.append(gasbarname)
             else:
               print(GREEN + f" [Warning] {barfile} exists in {phase} folder!" + ENDC)
   
@@ -198,16 +198,16 @@ def bar():
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
       os.chdir(phasedir)
-      if (phase == 'liquid') and (liquidshs != []):
-        if os.getlogin() == 'liuchw':
-          os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(liquidshs)} -t GPU -p {phasedir}")
-        else:
-          os.system(f"python {submitexe} -x {' '.join(liquidshs)} -t GPU -p {phasedir} -nodes {' '.join(nodes)}")
       if (phase == 'gas') and (gasshs != []):
         if os.getlogin() == 'liuchw':
           os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(gasshs)} -t CPU -n 4 -p {phasedir}")
         else:
           os.system(f"python {submitexe} -x {' '.join(gasshs)} -t CPU -n 4 -p {phasedir} -nodes {' '.join(nodes)}")
+      if (phase == 'liquid') and (liquidshs != []):
+        if os.getlogin() == 'liuchw':
+          os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(liquidshs)} -t GPU -p {phasedir}")
+        else:
+          os.system(f"python {submitexe} -x {' '.join(liquidshs)} -t GPU -p {phasedir} -nodes {' '.join(nodes)}")
   return
 
 def result():
