@@ -438,7 +438,7 @@ if __name__ == "__main__":
   else:
     ignoregas = 0
   if (ignoregas == 0):
-    phases.append('gas')
+    phases.insert(0,'gas')
     if not os.path.isdir('gas'):
       os.system("mkdir gas")
   
