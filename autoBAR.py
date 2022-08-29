@@ -8,10 +8,10 @@
 import os
 import sys
 import time
-import yaml
 import argparse
 import subprocess
 import numpy as np
+import ruamel.yaml as yaml
 from datetime import datetime
 from utils.checkautobar import *
 from utils.elescale import *
@@ -298,7 +298,7 @@ if __name__ == "__main__":
     sys.exit(RED + "Please provide 'settings.yaml' file; " + ENDC + GREEN + f"An example is here for you {os.path.join(rootdir, 'dat', 'settings.yaml')}" + ENDC)
   else:
     with open('settings.yaml') as f:
-      FEsimsettings = yaml.load(f, Loader=yaml.FullLoader)
+      FEsimsettings = yaml.load(f,Loader=yaml.Loader)
   global prm, checkingtime
   lig = FEsimsettings['gas_xyz'] 
   box = FEsimsettings['box_xyz'] 
