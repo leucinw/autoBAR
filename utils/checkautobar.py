@@ -27,21 +27,22 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
         cmd = f"head -n1 {os.path.join(homedir, phase, arcfile)} "
         checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
         firstline = '^' + checkstr.replace('\n', '$')
-        cmd = f"grep '{firstline}' {os.path.join(homedir, phase, arcfile)} | wc -l"
+        cmd = f"LC_ALL=C fgrep '{firstline}' {os.path.join(homedir, phase, arcfile)} | wc -l"
         checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
         simsnapshot = int(checkstr)
         if (simsnapshot == phase_simsnapshot[phase]):
           per = int(simsnapshot/phase_simsnapshot[phase]*100)
-          print(GREEN + f"{fname:>20s}: " + u'\u2584'*per  + f" [{per:>3d}%]" + ENDC)
+          print(GREEN + f"{fname:>20s}: " + u'\u2584'*(int(per/2))  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(True)
         else:
           per = int(simsnapshot/phase_simsnapshot[phase]*100)
-          print(YELLOW + f"{fname:>20s}: " + u'\u2584'*per  + f" [{per:>3d}%]" + ENDC)
+          print(YELLOW + f"{fname:>20s}: " + u'\u2584'*(int(per/2))  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(False) 
       else:
         if gastotalsnapshot == 0:
           statuslist.append(True)
         else:
+          print(RED + f"{arcfile} does not exist" + ENDC)
           statuslist.append(False)
   completed = all(statuslist)
   return completed, phase_simsnapshot
