@@ -26,8 +26,8 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
         # get the simulation snapshots here
         cmd = f"head -n1 {os.path.join(homedir, phase, arcfile)} "
         checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
-        firstline = '^' + checkstr.replace('\n', '$')
-        cmd = f"LC_ALL=C fgrep '{firstline}' {os.path.join(homedir, phase, arcfile)} | wc -l"
+        firstline = checkstr.replace('\n', '')
+        cmd = f"LANG=C fgrep '{firstline}' {os.path.join(homedir, phase, arcfile)} | wc -l"
         checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
         simsnapshot = int(checkstr)
         if (simsnapshot == phase_simsnapshot[phase]):
