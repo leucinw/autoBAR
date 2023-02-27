@@ -19,13 +19,33 @@ from utils.elescale import *
 def setup():
   for phase in phases:
     xyzfile = phase_xyz[phase]
+    keylines = phase_key[phase]
+    with open(f"{phase}.key", 'w') as f:
+      for line in keylines:
+        if 'parameters' in line.lower():
+          line = f'parameters     {prm}\n'
+        f.write(line)
+    gasminsh = 'gas-min.sh'
+    liquidminsh = 'liquid-min.sh'
+    if phase == 'gas':
+      with open(gasminsh, 'w') as f:
+        f.write(f'source {tinkerenv}\n')
+        f.write(f'{phase_minimize[phase]} {xyzfile} -key gas.key 0.1 > gas-min.log \n')
+        f.write('wait\nmv gas.xyz_2 gas.xyz\n')
+      os.system(f"sh {gasminsh}")
+    if phase == 'liquid':
+      with open(liquidminsh, 'w') as f:
+        f.write(f'source {tinkerenv}\n')
+        f.write(f'{phase_minimize[phase]} {xyzfile} -key liquid.key 0.5 > liquid-min.log\n')
+        f.write('wait\nmv liquid.xyz_2 liquid.xyz\n')
+      os.system(f"sh {liquidminsh}")
     os.system(f"rm -f {phase}/*.xyz {phase}/*.key")
     if not (ignoregas == 1 and phase == 'gas'):
       for i in range(len(orderparams)):
         elb, vlb = orderparams[i]
         fname = "%s-e%s-v%s"%(phase, "%03d"%int(elb*100), "%03d"%int(vlb*100))
         with open(fname + ".key", 'w') as fw:
-          for line in phase_key[phase]:
+          for line in keylines:
             if 'parameters' in line.lower():
               if (elb*vlb > 1.0):
                 line = f'parameters     ../{perturbprm}\n'
@@ -68,7 +88,10 @@ def dynamic():
       elb, vlb = orderparams[i]
       fname = "%s-e%s-v%s"%(phase, "%03d"%int(elb*100), "%03d"%int(vlb*100))
       if (elb*vlb > 1.0) and copyarcforperturb:
-        print(YELLOW + f" Skipping dynamic for {fname} " + ENDC)
+        fname0 = "%s-e100-v100"%(phase)
+        cmd = f"ln -sf {fname0}.arc {fname}.arc"
+        os.system(cmd)
+        print(GREEN + f" {cmd} " + ENDC)
         break
       xyzfile = fname + ".xyz"
       keyfile = xyzfile.replace("xyz", "key")
@@ -362,7 +385,10 @@ if __name__ == "__main__":
   perturbprm = prm + "_"
   if os.path.isfile(os.path.join(homedir, perturbprm)):
     orderparams.append([2.0, 2.0])
-    copyarcforperturb = FEsimsettings["copy_arc_for_perturb"]
+    print(GREEN + " [GOOD] You are doing one-step FEP" + ENDC) 
+    copyarcforperturb = bool(FEsimsettings["copy_arc_for_perturb"])
+    print(YELLOW + f" [Warning] Copy ARC file from e100-v100: {bool(copyarcforperturb)}" + ENDC) 
+
 
   # liquid phase specific settings 
   global phases, liquidkeylines
@@ -376,11 +402,11 @@ if __name__ == "__main__":
   # tinker.env
   global liquidmdexe, liquidbarexe
   liquidmdexe = '$DYNAMIC9' 
+  liquidminexe = '$MINIMIZE9' 
   liquidbarexe = '$BAR9' 
-  global phase_xyz, phase_key, phase_dynamic
+  global phase_xyz, phase_key, phase_dynamic, phase_minimize
   phase_xyz = {'liquid':box}
   phase_key = {'liquid':liquidkeylines}
-  phase_dynamic = {'liquid':liquidmdexe}
   global liquidtotaltime, liquidtimestep, liquidwriteout, liquidtotalstep, liquidtotalsnapshot
   global liquidT, liquidP, liquidensemble
   liquidtotaltime = FEsimsettings["liquid_md_total_time"] 
@@ -407,6 +433,7 @@ if __name__ == "__main__":
   # tinker.env
   global gasmdexe, gasbarexe
   gasmdexe = '$DYNAMIC8' 
+  gasminexe = '$MINIMIZE8' 
   gasbarexe = '$BAR8' 
   global gastotaltime, gastimestep, gaswriteout, gastemperature, gastotalstep, gastotalsnapshot
   gastotaltime = FEsimsettings["gas_md_total_time"] 
@@ -418,6 +445,7 @@ if __name__ == "__main__":
   phase_xyz = {'liquid':box, 'gas':lig}
   phase_key = {'liquid':liquidkeylines, 'gas':gaskeylines}
   phase_dynamic = {'liquid':liquidmdexe, 'gas':gasmdexe}
+  phase_minimize = {'liquid':liquidminexe, 'gas':gasminexe}
   
   # check xyz files
   lines = open(box).readlines()
@@ -430,9 +458,9 @@ if __name__ == "__main__":
       sys.exit(RED + f"[Error] Please provide a bigger box (>30*30*30)" + ENDC)
   lines = open(lig).readlines()
   natomgas = int(lines[0].split()[0])
-  if natomgas == 1:
+  if natomgas < 5:
     gastotaltime = 0.0
-    print(YELLOW + "[Warning] I set the simulation time to 0 since it is a single ion/atom" + ENDC)
+    print(YELLOW + f"[Warning] I set the simulation time to 0 since it only contains {natomgas} atoms" + ENDC)
   if gastotaltime == 0.0:
     ignoregas = 1
   else:
