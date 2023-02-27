@@ -26,19 +26,21 @@ def setup():
           line = f'parameters     {prm}\n'
         f.write(line)
     gasminsh = 'gas-min.sh'
-    liquidminsh = 'liquid-min.sh'
     if phase == 'gas':
       with open(gasminsh, 'w') as f:
         f.write(f'source {tinkerenv}\n')
         f.write(f'{phase_minimize[phase]} {xyzfile} -key gas.key 0.1 > gas-min.log \n')
         f.write('wait\nmv gas.xyz_2 gas.xyz\n')
-      os.system(f"sh {gasminsh}")
+      if not os.path.isfile("gas-min.log"):
+        os.system(f"sh {gasminsh}")
+    liquidminsh = 'liquid-min.sh'
     if phase == 'liquid':
       with open(liquidminsh, 'w') as f:
         f.write(f'source {tinkerenv}\n')
         f.write(f'{phase_minimize[phase]} {xyzfile} -key liquid.key 0.5 > liquid-min.log\n')
         f.write('wait\nmv liquid.xyz_2 liquid.xyz\n')
-      os.system(f"sh {liquidminsh}")
+      if not os.path.isfile("liquid-min.log"):
+        os.system(f"sh {liquidminsh}")
     os.system(f"rm -f {phase}/*.xyz {phase}/*.key")
     if not (ignoregas == 1 and phase == 'gas'):
       for i in range(len(orderparams)):
