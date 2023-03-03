@@ -40,8 +40,8 @@ In the automated mode, this program will automatically go through all steps unti
   python autoBAR.py auto
   ```
 * Advanced feature
-	# Run `opt`: use one-step BAR to get numerical gradient of the FE w.r.t. tuning parameters, and optimize the FF parameters. The settings.yaml needs to be setup carefully!
 	```shell
+	# Run `opt`: use one-step BAR to get numerical gradient of the FE w.r.t. tuning parameters, and optimize the FF parameters. The settings.yaml needs to be setup carefully!
 	python autoBAR.py opt
 	```
 
