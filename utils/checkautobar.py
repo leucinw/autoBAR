@@ -53,36 +53,73 @@ def checkbar(phases, orderparams, homedir, ignoregas):
   liquidenes = []
   gasperturbsteps = []
   liquidperturbsteps = []
+  fep_gasenes = []
+  fep_liquidenes = []
+  fep_gasperturbsteps = []
+  fep_liquidperturbsteps = []
   checkphases = phases
   if ignoregas == 1:
     checkphases = ['liquid']
   
   for phase in checkphases:
-    for i in range(0,len(orderparams)-1,1):
-      elb0, vlb0 = orderparams[i]
-      elb1, vlb1 = orderparams[i+1]
-      fname0 = "%s-e%s-v%s"%(phase, "%03d"%int(elb0*100), "%03d"%int(vlb0*100))
-      fname1 = "%s-e%s-v%s"%(phase, "%03d"%int(elb1*100), "%03d"%int(vlb1*100))
+    for i in range(len(orderparams)):
+      e, v = orderparams[i]
+      if (e <= 1.0) or (v <= 1.0):
+        elb0, vlb0 = orderparams[i]
+        elb1, vlb1 = orderparams[i+1]
+      else:
+        elb0, vlb0 = 1.0, 1.0 
+        elb1, vlb1 = e, v 
+      
+      elb0 = "%03d"%int(elb0*100)
+      elb1 = "%03d"%int(elb1*100)
+      vlb0 = "%03d"%int(vlb0*100)
+      vlb1 = "%03d"%int(vlb1*100)
+      fname0 = "%s-e%s-v%s"%(phase, elb0, vlb0)
+      fname1 = "%s-e%s-v%s"%(phase, elb1, vlb1)
+      
+      enedir = os.path.join(homedir, phase)
+      
+      if (int(elb1) > 100) and (int(vlb1) > 100):
+        idx = int(int(elb1)/10 - 10)
+        enedir = os.path.join(homedir, phase, f'FEP_{idx:02d}')
+      
       if phase == 'gas':
         enefile = fname1 + ".ene"
         fname = fname1
-        gasenes.append(enefile)
-        gasperturbsteps.append([fname1, fname0])
+        if (int(elb1) > 100) and (int(vlb1) > 100):
+          if os.path.join(enedir,enefile) not in fep_gasenes:
+            fep_gasenes.append(os.path.join(enedir,enefile))
+            fep_gasperturbsteps.append([fname1, fname0])
+        else:
+          if os.path.join(enedir,enefile) not in gasenes:
+            gasenes.append(os.path.join(enedir,enefile))
+            gasperturbsteps.append([fname1, fname0])
+        
       if phase == 'liquid':
         enefile = fname0 + ".ene"
         fname = fname0
-        liquidenes.append(enefile)
-        liquidperturbsteps.append([fname0, fname1])
-      if not os.path.isfile(os.path.join(homedir, phase, enefile)):
-        print(RED + " " + fname + f": free energy file (.ene) not found!" + ENDC)
-        statuslist.append(False) 
-      else:
-        lines = open(os.path.join(homedir, phase, enefile)).readlines()
-        barfinished = False
-        for line in lines[-5:]:
-          if "BAR Estimate of -T*dS" in line:
-            barfinished = True
-        statuslist.append(barfinished)
+        if (int(elb1) > 100) and (int(vlb1) > 100):
+          if os.path.join(enedir,enefile) not in fep_liquidenes:
+            fep_liquidenes.append(os.path.join(enedir,enefile))
+            fep_liquidperturbsteps.append([fname0, fname1])
+        else: 
+          if os.path.join(enedir,enefile) not in liquidenes:
+            liquidenes.append(os.path.join(enedir,enefile))
+            liquidperturbsteps.append([fname0, fname1])
+      
+  for enefile in gasenes + liquidenes + fep_gasenes + fep_liquidenes:
+    if not os.path.isfile(enefile):
+      print(RED + " " + fname + f": free energy file (.ene) not found!" + ENDC)
+      statuslist.append(False) 
+    else:
+      lines = open(enefile).readlines()
+      barfinished = False
+      for line in lines[-5:]:
+        if "BAR Estimate of -T*dS" in line:
+          barfinished = True
+      statuslist.append(barfinished)
+
   finished = statuslist.count(True)
   targeted = len(statuslist)
   if finished != targeted:
@@ -90,4 +127,4 @@ def checkbar(phases, orderparams, homedir, ignoregas):
   else:
     print(GREEN + f" Finished {finished} out of {targeted} bar analysis steps" + ENDC)
   completed = all(statuslist)
-  return completed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes
+  return completed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes, fep_gasperturbsteps, fep_gasenes, fep_liquidperturbsteps, fep_liquidenes

@@ -51,9 +51,12 @@ def setup():
           for line in keylines:
             if 'parameters' in line.lower():
               if (elb*vlb > 1.0):
-                line = f'parameters     ../{perturbprm}\n'
+                assert elb == vlb, RED + f" Error: lambdas greater than 1 but not the same: {elb}, {vlb} " + ENDC
+                idx = int((elb*100)/10) - 10
+                perturbprm = f"{prm}_{idx:02d}"
+                line = f'parameters     {homedir}/{perturbprm}\n'
               else:
-                line = f'parameters     ../{prm}\n'
+                line = f'parameters     {homedir}/{prm}\n'
             fw.write(line)
           fw.write('\n')
           fw.write(f'ligand -1 {natom}\n')
@@ -173,9 +176,14 @@ def bar():
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
       os.chdir(phasedir)
-      for i in range(0,len(orderparams)-1,1):
-        elb0, vlb0 = orderparams[i]
-        elb1, vlb1 = orderparams[i+1]
+      for i in range(len(orderparams)):
+        e, v = orderparams[i]
+        if (e <= 1.0) or (v <= 1.0):
+          elb0, vlb0 = orderparams[i]
+          elb1, vlb1 = orderparams[i+1]
+        else:
+          elb0, vlb0 = 1.0, 1.0 
+          elb1, vlb1 = e, v 
         elb0 = "%03d"%int(elb0*100)
         elb1 = "%03d"%int(elb1*100)
         vlb0 = "%03d"%int(vlb0*100)
@@ -186,23 +194,47 @@ def bar():
         arcfile1 = fname1 + ".arc"
         liquidbarname = f"bar_e{elb0}-v{vlb0}_e{elb1}-v{vlb1}.sh"
         gasbarname = f"bar_e{elb1}-v{vlb1}_e{elb0}-v{vlb0}.sh"
-        if (int(elb1)*int(vlb1) > 10000) and copyarcforperturb:
-          linkarc = f"ln -sf {arcfile0} {arcfile1}"
+        barfiledir = os.path.join(homedir, phase)
+        # put the FEP files in a separate folder
+        if (int(elb1) > 100 and (int(vlb1) > 100)):
+          idx = int(int(elb1)/10 - 10)
+          fepdir = f"FEP_{idx:02d}"
+          barfiledir = os.path.join(homedir, phase, fepdir)
+          os.system(f"mkdir -p {homedir}/{phase}/{fepdir}") 
+          linkarc = f"ln -sf {homedir}/{phase}/{arcfile0} {homedir}/{phase}/{fepdir}/{arcfile0}"
           os.system(linkarc)
+          key0 = f"{phase}-e{elb0}-v{vlb0}.key"
+          key1 = f"{phase}-e{elb1}-v{vlb1}.key"
+          linkkey = f"ln -sf {homedir}/{phase}/{key0} {homedir}/{phase}/{fepdir}/{key0}"
+          os.system(linkkey)
+          linkkey = f"ln -sf {homedir}/{phase}/{key1} {homedir}/{phase}/{fepdir}/{key1}"
+          os.system(linkkey)
+          if copyarcforperturb:
+            linkarc = f"ln -sf {homedir}/{phase}/{arcfile0} {homedir}/{phase}/{fepdir}/{arcfile1}"
+            os.system(linkarc)
+          else: 
+            linkarc = f"ln -sf {homedir}/{phase}/{arcfile1} {homedir}/{phase}/{fepdir}/{arcfile1}"
+            os.system(linkarc)
+        
         if phase == 'liquid':
           printname = fname0
           outfile = fname0 + ".out"
           barfile = fname0 + ".bar"
           enefile = fname0 + ".ene"
           startsnapshot = int(liquidtotalsnapshot/5.0) + 1
-          if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
+          
+          if (not os.path.isfile(barfiledir + "/" + barfile)):
             with open(liquidbarname, 'w') as f:
               f.write(f"source {tinkerenv}\n")
               f.write(f"{liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && \n")
               f.write(f"{liquidbarexe} 2 {barfile} {startsnapshot} {liquidtotalsnapshot} 1 {startsnapshot} {liquidtotalsnapshot} 1 > {enefile} \n")
-              liquidshs.append(liquidbarname)
+            if [liquidbarname, barfiledir] not in liquidshs:
+              liquidshs.append([liquidbarname, barfiledir])
+            if (int(elb1) > 100):
+              os.system(f"mv {liquidbarname} {homedir}/{phase}/{fepdir}")
           else:
             print(GREEN + f" [Warning] {barfile} exist in {phase} folder! " + ENDC)
+        
         if phase == 'gas':
           printname = fname1
           outfile = fname1 + ".out"
@@ -211,29 +243,31 @@ def bar():
           startsnapshot = int(gastotalsnapshot/5.0) + 1
           
           if gastotaltime != 0:
-            if (not os.path.isfile(os.path.join(homedir, phase, barfile))):
+            if (not os.path.isfile(barfiledir + '/' + barfile)):
               with open(gasbarname, 'w') as f:
                 f.write(f"source {tinkerenv}\n")
                 f.write(f"{gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && \n")
                 f.write(f"{gasbarexe} 2 {barfile} {startsnapshot} {gastotalsnapshot} 1 {startsnapshot} {gastotalsnapshot} 1 > {enefile} \n")
-                gasshs.append(gasbarname)
+              if [gasbarname, barfiledir] not in gasshs:
+                gasshs.append([gasbarname, barfiledir])
+              if (int(elb1) > 100):
+                os.system(f"mv {gasbarname} {homedir}/{phase}/{fepdir}")
             else:
               print(GREEN + f" [Warning] {barfile} exists in {phase} folder!" + ENDC)
-  
     # submit jobs to clusters 
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
       os.chdir(phasedir)
       if (phase == 'gas') and (gasshs != []):
         if os.getlogin() == 'liuchw':
-          os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(gasshs)} -t CPU -n 4 -p {phasedir}")
+          os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join([x[0] for x in gasshs])} -t CPU -n 4 -p {' '.join([x[1] for x in gasshs])}")
         else:
-          os.system(f"python {submitexe} -x {' '.join(gasshs)} -t CPU -n 4 -p {phasedir} -nodes {' '.join(nodes)}")
+          os.system(f"python {submitexe} -x {' '.join([x[0] for x in gasshs])} -t CPU -n 4 -p {' '.join([x[1] for x in gasshs])} -nodes {' '.join(nodes)}")
       if (phase == 'liquid') and (liquidshs != []):
         if os.getlogin() == 'liuchw':
-          os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(liquidshs)} -t GPU -p {phasedir}")
+          os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join([x[0] for x in liquidshs])} -t GPU -p {' '.join([x[1] for x in liquidshs])}")
         else:
-          os.system(f"python {submitexe} -x {' '.join(liquidshs)} -t GPU -p {phasedir} -nodes {' '.join(nodes)}")
+          os.system(f"python {submitexe} -x {' '.join([x[0] for x in liquidshs])} -t GPU -p {' '.join([x[1] for x in liquidshs])} -nodes {' '.join(nodes)}")
   return
 
 def result():
@@ -241,27 +275,27 @@ def result():
   if inputaction == 'auto':
     proceed = False
     while not proceed:
-      proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes = checkbar(phases, orderparams, homedir, ignoregas)
+      proceed, _, _, _, _, _, _, _, _ = checkbar(phases, orderparams, homedir, ignoregas)
       if proceed:
         break
       now = datetime.now().strftime("%b %d %Y %H:%M:%S")
       print(YELLOW + f" [{now}] Waiting for bar jobs to finish ..." + ENDC)
       time.sleep(checkingtime)
   else:
-    proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes = checkbar(phases, orderparams, homedir, ignoregas)
+    proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes, fep_gasperturbsteps, fep_gasenes, fep_liquidperturbsteps, fep_liquidenes = checkbar(phases, orderparams, homedir, ignoregas)
   
   if proceed:
-    if copyarcforperturb:
-      for phase in phases:
-        rmcmd = f"rm -f {phase}/*200.arc"
-        os.system(rmcmd)
     FEgas = []
     Errgas = []
     FEliquid = []
     Errliquid = []
+    fep_FEgas = []
+    fep_Errgas = []
+    fep_FEliquid = []
+    fep_Errliquid = []
     for gasene in gasenes:
       find = False
-      for line in open(os.path.join(homedir, 'gas', gasene)).readlines():
+      for line in open(gasene).readlines():
         if "Free Energy via BAR Iteration" in line:
           find = True
           FEgas.append(float(line.split()[-4]))
@@ -271,9 +305,21 @@ def result():
           FEgas.append(float(line.split()[-4]))
           Errgas.append(float(line.split()[-2]))
     
+    for gasene in fep_gasenes:
+      find = False
+      for line in open(gasene).readlines():
+        if "Free Energy via BAR Iteration" in line:
+          find = True
+          fep_FEgas.append(float(line.split()[-4]))
+          fep_Errgas.append(float(line.split()[-2]))
+        if (not find) and ("Free Energy via BAR Bootstrap" in line):
+          find = True
+          fep_FEgas.append(float(line.split()[-4]))
+          fep_Errgas.append(float(line.split()[-2]))
+    
     for liquidene in liquidenes:
       find = False
-      for line in open(os.path.join(homedir, 'liquid', liquidene)).readlines():
+      for line in open(liquidene).readlines():
         if "Free Energy via BAR Iteration" in line:
           find = True
           FEliquid.append(float(line.split()[-4]))
@@ -282,11 +328,26 @@ def result():
           find = True
           FEliquid.append(float(line.split()[-4]))
           Errliquid.append(float(line.split()[-2]))
+    
+    for liquidene in fep_liquidenes:
+      find = False
+      for line in open(liquidene).readlines():
+        if "Free Energy via BAR Iteration" in line:
+          find = True
+          fep_FEliquid.append(float(line.split()[-4]))
+          fep_Errliquid.append(float(line.split()[-2]))
+        if (not find) and ("Free Energy via BAR Bootstrap" in line):
+          find = True
+          fep_FEliquid.append(float(line.split()[-4]))
+          fep_Errliquid.append(float(line.split()[-2]))
     
     FEall = FEgas + FEliquid
     Errall = Errgas + Errliquid
     totFE = np.array(FEall).sum()
     totErr = np.sqrt(np.square(np.array(Errall)).sum())
+    
+      
+    
     fo = open(os.path.join(homedir, "result.txt"), "w")
     print(GREEN + "%20s%20s%30s%20s"%("StateA", "StateB", "FreeEnergy(kcal/mol)", "Error(kcal/mol)") + ENDC)
     fo.write("%20s%20s%30s%20s\n"%("StateA", "StateB", "FreeEnergy(kcal/mol)", "Error(kcal/mol)"))
@@ -298,9 +359,15 @@ def result():
       state0, state1 = liquidperturbsteps[i]
       print("%20s%20s%25.4f%20.4f"%(state0, state1, FEliquid[i], Errliquid[i]))
       fo.write("%20s%20s%25.4f%20.4f\n"%(state0, state1, FEliquid[i], Errliquid[i]))
-    print(GREEN + "%40s%25.4f%20.4f"%("SUMMARY OF THE TOTAL FREE ENERGY", totFE, totErr) + ENDC)
-    fo.write("%40s%25.4f%20.4f\n"%("SUMMARY OF THE TOTAL FREE ENERGY", totFE, totErr))
+    print(GREEN + "%40s%25.4f%20.4f"%("SUM OF THE TOTAL FREE ENERGY (FE0)", totFE, totErr) + ENDC)
+    fo.write("%40s%25.4f%20.4f\n"%("SUM OF THE TOTAL FREE ENERGY (FE0)", totFE, totErr))
     fo.close()
+    
+    print(YELLOW + "    %20s%20s%27s%20s"%("GAS", "LIQUID", "GAS+LIQUID", "GAS+LIQUID+FE0") + ENDC)
+    for i in range(len(fep_FEgas)): 
+      feg = fep_FEgas[i]
+      fel = fep_FEliquid[i]
+      print(f"    FEP_{i+1:03d}{feg:14.4f}{fel:19.4f}{feg+fel:25.4f}{totFE+feg+fel:20.4f}")
   return
 
 def opt():
@@ -457,15 +524,17 @@ if __name__ == "__main__":
       d = line.split()
       orderparams.append([float(d[0]), float(d[1])])
   
-  global perturbprm
   global copyarcforperturb
   copyarcforperturb = False
-  perturbprm = prm + "_"
-  if os.path.isfile(os.path.join(homedir, perturbprm)):
-    orderparams.append([2.0, 2.0])
-    print(GREEN + " [GOOD] You are doing one-step FEP" + ENDC) 
+  if "copy_arc_for_perturb" in FEsimsettings.keys():
     copyarcforperturb = bool(FEsimsettings["copy_arc_for_perturb"])
     print(YELLOW + f" [Warning] Copy ARC file from e100-v100: {bool(copyarcforperturb)}" + ENDC) 
+   
+  for i in range(1,100,1): # allow 99 files at a time to do FEP
+    if os.path.isfile(os.path.join(homedir, f"{prm}_{i:02d}")):
+      fakelambda = round(1.0 + i*0.1, 1)
+      orderparams.append([fakelambda, fakelambda])
+      print(GREEN + f" [GOOD] You are doing one-step FEP for parameter file {prm}_{i:02d}" + ENDC) 
 
 
   # liquid phase specific settings 
