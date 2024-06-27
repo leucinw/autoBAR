@@ -27,7 +27,8 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
         cmd = f"head -n1 {os.path.join(homedir, phase, arcfile)} "
         checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
         firstline = checkstr.replace('\n', '')
-        cmd = f"LANG=C fgrep '{firstline}' {os.path.join(homedir, phase, arcfile)} | wc -l"
+        firstline = '^' + firstline + '$'
+        cmd = f"grep '{firstline}' {os.path.join(homedir, phase, arcfile)} | wc -l"
         checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
         simsnapshot = int(checkstr)
         if (simsnapshot == phase_simsnapshot[phase]):
@@ -62,14 +63,11 @@ def checkbar(phases, orderparams, homedir, ignoregas):
     checkphases = ['liquid']
   
   for phase in checkphases:
-    for i in range(len(orderparams)):
-      e, v = orderparams[i]
-      if (e <= 1.0) or (v <= 1.0):
-        elb0, vlb0 = orderparams[i]
-        elb1, vlb1 = orderparams[i+1]
-      else:
+    for i in range(len(orderparams)-1):
+      elb0, vlb0 = orderparams[i]
+      elb1, vlb1 = orderparams[i+1]
+      if (elb1 > 1.0):
         elb0, vlb0 = 1.0, 1.0 
-        elb1, vlb1 = e, v 
       
       elb0 = "%03d"%int(elb0*100)
       elb1 = "%03d"%int(elb1*100)
