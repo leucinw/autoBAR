@@ -38,12 +38,13 @@ def setup():
     if phase == 'liquid':
       with open(liquidminsh, 'w') as f:
         f.write(f'source {tinkerenv}\n')
-        f.write(f'{phase_minimize[phase]} {xyzfile} -key liquid.key 0.5 > liquid-min.log\n')
+        f.write(f'{phase_minimize[phase]} {xyzfile} -key liquid.key 0.2 > liquid-min.log\n')
         f.write(f'wait\nmv {phase_xyz[phase]}_2 {phase_xyz[phase]}\n')
       if not os.path.isfile("liquid-min.log"):
         os.system(f"sh {liquidminsh}")
     os.system(f"rm -f {phase}/*.xyz {phase}/*.key")
     if not (ignoregas == 1 and phase == 'gas'):
+      prmfiles = []
       for i in range(len(orderparams)):
         elb, vlb = orderparams[i]
         fname = "%s-e%s-v%s"%(phase, "%03d"%int(elb*100), "%03d"%int(vlb*100))
@@ -54,9 +55,13 @@ def setup():
                 assert elb == vlb, RED + f" Error: lambdas greater than 1 but not the same: {elb}, {vlb} " + ENDC
                 idx = int((elb*100)/10) - 10
                 perturbprm = f"{prm}_{idx:02d}"
-                line = f'parameters     {homedir}/{perturbprm}\n'
+                line = f'parameters     {homedir}/{phase}/{perturbprm}\n'
+                if perturbprm not in prmfiles:
+                  prmfiles.append(perturbprm)
               else:
-                line = f'parameters     {homedir}/{prm}\n'
+                line = f'parameters     {homedir}/{phase}/{prm}\n'
+                if prm not in prmfiles:
+                  prmfiles.append(prm)
             fw.write(line)
           fw.write('\n')
           fw.write(f'ligand -1 {natom}\n')
@@ -80,6 +85,11 @@ def setup():
         movekey = f"mv {fname}.key ./{phase}"
         subprocess.run(linkxyz, shell=True)
         subprocess.run(movekey, shell=True)
+      
+      # make copy of prmfile
+      for prmfile in prmfiles:
+        copyprm = f"cp {prmfile}  ./{phase}"
+        subprocess.run(copyprm, shell=True)
   print(GREEN + ' [GOOD] BAR simulation files generated!' + ENDC)
   return
 
@@ -103,7 +113,7 @@ def dynamic():
       keyfile = xyzfile.replace("xyz", "key")
       logfile = xyzfile.replace("xyz", "log")
       if os.path.isfile(logfile):
-        print(YELLOW + f" [Warning] {logfile} exists in {phase} folder for {fname}" + ENDC)
+        print(YELLOW + f" [Warning] {logfile} exists in {phasedir} folder for {fname}" + ENDC)
       else:
         if phase == 'liquid':
           liquidsh = fname + '.sh'
@@ -176,14 +186,11 @@ def bar():
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
       os.chdir(phasedir)
-      for i in range(len(orderparams)):
-        e, v = orderparams[i]
-        if (e <= 1.0) or (v <= 1.0):
-          elb0, vlb0 = orderparams[i]
-          elb1, vlb1 = orderparams[i+1]
-        else:
+      for i in range(len(orderparams)-1):
+        elb0, vlb0 = orderparams[i]
+        elb1, vlb1 = orderparams[i+1]
+        if elb1 > 1.0:
           elb0, vlb0 = 1.0, 1.0 
-          elb1, vlb1 = e, v 
         elb0 = "%03d"%int(elb0*100)
         elb1 = "%03d"%int(elb1*100)
         vlb0 = "%03d"%int(vlb0*100)
@@ -233,7 +240,7 @@ def bar():
             if (int(elb1) > 100):
               os.system(f"mv {liquidbarname} {homedir}/{phase}/{fepdir}")
           else:
-            print(GREEN + f" [Warning] {barfile} exist in {phase} folder! " + ENDC)
+            print(YELLOW + f" [Warning] {barfile} exists in {barfiledir} folder! " + ENDC)
         
         if phase == 'gas':
           printname = fname1
@@ -253,7 +260,7 @@ def bar():
               if (int(elb1) > 100):
                 os.system(f"mv {gasbarname} {homedir}/{phase}/{fepdir}")
             else:
-              print(GREEN + f" [Warning] {barfile} exists in {phase} folder!" + ENDC)
+              print(YELLOW + f" [Warning] {barfile} exists in {barfiledir} folder!" + ENDC)
     # submit jobs to clusters 
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
@@ -346,8 +353,6 @@ def result():
     totFE = np.array(FEall).sum()
     totErr = np.sqrt(np.square(np.array(Errall)).sum())
     
-      
-    
     fo = open(os.path.join(homedir, "result.txt"), "w")
     print(GREEN + "%20s%20s%30s%20s"%("StateA", "StateB", "FreeEnergy(kcal/mol)", "Error(kcal/mol)") + ENDC)
     fo.write("%20s%20s%30s%20s\n"%("StateA", "StateB", "FreeEnergy(kcal/mol)", "Error(kcal/mol)"))
@@ -361,13 +366,18 @@ def result():
       fo.write("%20s%20s%25.4f%20.4f\n"%(state0, state1, FEliquid[i], Errliquid[i]))
     print(GREEN + "%40s%25.4f%20.4f"%("SUM OF THE TOTAL FREE ENERGY (FE0)", totFE, totErr) + ENDC)
     fo.write("%40s%25.4f%20.4f\n"%("SUM OF THE TOTAL FREE ENERGY (FE0)", totFE, totErr))
-    fo.close()
     
     print(YELLOW + "    %20s%20s%27s%20s"%("GAS", "LIQUID", "GAS+LIQUID", "GAS+LIQUID+FE0") + ENDC)
-    for i in range(len(fep_FEgas)): 
-      feg = fep_FEgas[i]
+    fo.write("    %20s%20s%27s%20s\n"%("GAS", "LIQUID", "GAS+LIQUID", "GAS+LIQUID+FE0"))
+    for i in range(len(fep_FEliquid)): 
+      feg = 0.0
+      if ignoregas == 0:
+        feg = fep_FEgas[i]
       fel = fep_FEliquid[i]
       print(f"    FEP_{i+1:03d}{feg:14.4f}{fel:19.4f}{feg+fel:25.4f}{totFE+feg+fel:20.4f}")
+      fo.write(f"    FEP_{i+1:03d}{feg:14.4f}{fel:19.4f}{feg+fel:25.4f}{totFE+feg+fel:20.4f}\n")
+    
+    fo.close()
   return
 
 def opt():
@@ -607,7 +617,7 @@ if __name__ == "__main__":
   natomgas = int(lines[0].split()[0])
   if natomgas < 5:
     gastotaltime = 0.0
-    print(YELLOW + f"[Warning] I set the simulation time to 0 since it only contains {natomgas} atoms" + ENDC)
+    print(YELLOW + f" [Warning] I set the simulation time to 0 since it only contains {natomgas} atoms" + ENDC)
   if gastotaltime == 0.0:
     ignoregas = 1
   else:
