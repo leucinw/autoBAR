@@ -108,7 +108,7 @@ def dynamic():
         cmd = f"ln -sf {fname0}.arc {fname}.arc"
         os.system(cmd)
         print(GREEN + f" {cmd} " + ENDC)
-        break
+      
       xyzfile = fname + ".xyz"
       keyfile = xyzfile.replace("xyz", "key")
       logfile = xyzfile.replace("xyz", "log")
@@ -171,14 +171,14 @@ def bar():
   if inputaction == "auto":
     proceed = False
     while not proceed: 
-      proceed, phase_simsnapshot = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir)
+      proceed, phase_simsnapshot = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir, verbose)
       if proceed:
         break
       now = datetime.now().strftime("%b %d %Y %H:%M:%S")
       print(YELLOW + f" [{now}] Waiting for dynamic jobs to finish ..." + ENDC)
       time.sleep(checkingtime)
   else:
-    proceed, phase_simsnapshot = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir)
+    proceed, phase_simsnapshot = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir, verbose)
     
   if proceed:
     liquidshs = []
@@ -279,17 +279,7 @@ def bar():
 
 def result():
   print(YELLOW + " Checking the completeness of the BAR analysis ..." + ENDC)
-  if inputaction == 'auto':
-    proceed = False
-    while not proceed:
-      proceed, _, _, _, _, _, _, _, _ = checkbar(phases, orderparams, homedir, ignoregas)
-      if proceed:
-        break
-      now = datetime.now().strftime("%b %d %Y %H:%M:%S")
-      print(YELLOW + f" [{now}] Waiting for bar jobs to finish ..." + ENDC)
-      time.sleep(checkingtime)
-  else:
-    proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes, fep_gasperturbsteps, fep_gasenes, fep_liquidperturbsteps, fep_liquidenes = checkbar(phases, orderparams, homedir, ignoregas)
+  proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes, fep_gasperturbsteps, fep_gasenes, fep_liquidperturbsteps, fep_liquidenes = checkbar(phases, orderparams, homedir, ignoregas, verbose)
   
   if proceed:
     FEgas = []
@@ -300,6 +290,7 @@ def result():
     fep_Errgas = []
     fep_FEliquid = []
     fep_Errliquid = []
+    
     for gasene in gasenes:
       find = False
       for line in open(gasene).readlines():
@@ -404,7 +395,7 @@ def opt():
   p_init = np.array(p_init)
 
   def write_ff(p):
-    with open(prm + "_", 'w') as f:
+    with open(prm + "_10", 'w') as f:
       k = 0
       for line in lines:
         tuning = False
@@ -422,7 +413,7 @@ def opt():
   
   def sp_fe(p):
     restraint_factor = 1.0
-    os.system(f"rm -f result.txt {prm}_")
+    os.system(f"rm -f result.txt {prm}_10")
     if not np.array_equal(p, p_init):
       write_ff(p)
       os.system("rm -f result.txt */*200* liquid/liquid-e100-v100.{bar,ene}")
@@ -434,7 +425,7 @@ def opt():
       if not os.path.isfile('result.txt'):
         time.sleep(30.0)
       else:
-        calc_fe = float(open('result.txt').readlines()[-1].split()[-2])
+        calc_fe = float(open('result.txt').readlines()[-2].split()[-2])
         break 
     return np.array([calc_fe - expt_fe] + list((p-p_init)*restraint_factor))
  
@@ -468,6 +459,10 @@ if __name__ == "__main__":
   else:
     with open('settings.yaml') as f:
       FEsimsettings = yaml.load(f,Loader=yaml.Loader)
+  
+  global verbose
+  verbose = int(FEsimsettings['verbose'])
+  
   global prm, checkingtime
   lig = FEsimsettings['gas_xyz'] 
   box = FEsimsettings['box_xyz'] 
@@ -631,5 +626,25 @@ if __name__ == "__main__":
   if inputaction in actions.keys():
     actions[inputaction]()
   if inputaction == 'auto': 
-    for action in ['setup', 'dynamic', 'bar', 'result']: 
-      actions[action]()
+    actions['setup']()
+    actions['dynamic']()
+    
+    if copyarcforperturb:
+      checkorderparams = orderparams[:-1]
+    else:
+      checkorderparams = orderparams
+    
+    # check if dynamic is complete
+    dynamic_good = False
+    while not dynamic_good: 
+      time.sleep(30.0)
+      dynamic_good, _ = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir, verbose)
+    
+    actions['bar']()
+    # check if bar is complete  
+    bar_good = False
+    while not bar_good:
+      time.sleep(30.0)
+      bar_good, _, _, _, _, _, _, _, _ = checkbar(phases, orderparams, homedir, ignoregas, verbose)
+    
+    actions['result']()

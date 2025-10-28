@@ -13,7 +13,7 @@ ENDC = '\033[0m'
 GREEN = '\033[92m'
 YELLOW = '\33[93m'
 
-def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, homedir):
+def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, homedir, verbose):
   statuslist = []
   phase_simsnapshot = {'liquid': liquidtotalsnapshot, 'gas':gastotalsnapshot}
   for phase in phases:
@@ -33,22 +33,25 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
         simsnapshot = int(checkstr)
         if (simsnapshot == phase_simsnapshot[phase]):
           per = int(simsnapshot/phase_simsnapshot[phase]*100)
-          print(GREEN + f"{fname:>20s}: " + u'\u2584'*(int(per/2))  + f" [{per:>3d}%]" + ENDC)
+          if verbose > 0:
+            print(GREEN + f"{fname:>20s}: " + u'\u2584'*(int(per/2))  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(True)
         else:
           per = int(simsnapshot/phase_simsnapshot[phase]*100)
-          print(YELLOW + f"{fname:>20s}: " + u'\u2584'*(int(per/2))  + f" [{per:>3d}%]" + ENDC)
+          if verbose > 0:
+            print(YELLOW + f"{fname:>20s}: " + u'\u2584'*(int(per/2))  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(False) 
       else:
         if gastotalsnapshot == 0:
           statuslist.append(True)
         else:
-          print(RED + f"{arcfile} does not exist" + ENDC)
+          if verbose > 0:
+            print(RED + f"{arcfile} does not exist" + ENDC)
           statuslist.append(False)
   completed = all(statuslist)
   return completed, phase_simsnapshot
 
-def checkbar(phases, orderparams, homedir, ignoregas):
+def checkbar(phases, orderparams, homedir, ignoregas, verbose):
   statuslist = []
   gasenes = []
   liquidenes = []
@@ -108,7 +111,8 @@ def checkbar(phases, orderparams, homedir, ignoregas):
       
   for enefile in gasenes + liquidenes + fep_gasenes + fep_liquidenes:
     if not os.path.isfile(enefile):
-      print(RED + " " + fname + f": free energy file (.ene) not found!" + ENDC)
+      if verbose > 0:
+        print(RED + " " + fname + f": free energy file (.ene) not found!" + ENDC)
       statuslist.append(False) 
     else:
       lines = open(enefile).readlines()
@@ -121,8 +125,10 @@ def checkbar(phases, orderparams, homedir, ignoregas):
   finished = statuslist.count(True)
   targeted = len(statuslist)
   if finished != targeted:
-    print(YELLOW + f" Finished {finished} out of {targeted} bar analysis steps" + ENDC)
+    if verbose > 0:
+      print(YELLOW + f" Finished {finished} out of {targeted} bar analysis steps" + ENDC)
   else:
-    print(GREEN + f" Finished {finished} out of {targeted} bar analysis steps" + ENDC)
+    if verbose > 0:
+      print(GREEN + f" Finished {finished} out of {targeted} bar analysis steps" + ENDC)
   completed = all(statuslist)
   return completed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes, fep_gasperturbsteps, fep_gasenes, fep_liquidperturbsteps, fep_liquidenes
