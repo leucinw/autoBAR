@@ -80,6 +80,7 @@ Two example systems are located in `examples` folder. They should be easy to rea
   * `gas_md_time_step`: 0.1 fs # Gas phase stochastic dynamics
 
 * One-step perturbation is supported 
-  * An `{fname}.prm_` file with small parameter perturbation need to be in the working directory
+  * An `{fname}.prm_XX` file with small parameter perturbation need to be in the working directory
+  * When there are multiple `{fname}.prm_XX` files, program will do multiple perturbations at the same time. (support upto 99 perturbations!)
   * No need modify the `settings.yaml` file
   * This will be treated as the end state (two end states if involving two legs)
