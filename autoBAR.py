@@ -363,7 +363,6 @@ def result():
     
     print(YELLOW + "    %20s%20s%27s%20s"%("GAS", "LIQUID", "GAS+LIQUID", "GAS+LIQUID+FE0") + ENDC)
     fo.write("    %20s%20s%27s%20s\n"%("GAS", "LIQUID", "GAS+LIQUID", "GAS+LIQUID+FE0"))
-    print('LEN', len(fep_FEliquid))
     for i in range(len(fep_FEliquid)): 
       feg = 0.0
       if ignoregas == 0:
