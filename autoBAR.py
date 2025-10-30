@@ -47,13 +47,13 @@ def setup():
       prmfiles = []
       for i in range(len(orderparams)):
         elb, vlb = orderparams[i]
-        fname = "%s-e%s-v%s"%(phase, "%03d"%int(elb*100), "%03d"%int(vlb*100))
+        fname = "%s-e%s-v%s"%(phase, "%03d"%round(elb*100), "%03d"%round(vlb*100))
         with open(fname + ".key", 'w') as fw:
           for line in keylines:
             if 'parameters' in line.lower():
               if (elb*vlb > 1.0):
                 assert elb == vlb, RED + f" Error: lambdas greater than 1 but not the same: {elb}, {vlb} " + ENDC
-                idx = int((elb*100)/10) - 10
+                idx = int(round(elb*100)/10) - 10
                 perturbprm = f"{prm}_{idx:02d}"
                 line = f'parameters     {homedir}/{phase}/{perturbprm}\n'
                 if perturbprm not in prmfiles:
@@ -102,7 +102,7 @@ def dynamic():
     os.chdir(phasedir)
     for i in range(len(orderparams)):
       elb, vlb = orderparams[i]
-      fname = "%s-e%s-v%s"%(phase, "%03d"%int(elb*100), "%03d"%int(vlb*100))
+      fname = "%s-e%s-v%s"%(phase, "%03d"%round(elb*100), "%03d"%round(vlb*100))
       if (elb*vlb > 1.0) and copyarcforperturb:
         fname0 = "%s-e100-v100"%(phase)
         cmd = f"ln -sf {fname0}.arc {fname}.arc"
@@ -113,7 +113,8 @@ def dynamic():
       keyfile = xyzfile.replace("xyz", "key")
       logfile = xyzfile.replace("xyz", "log")
       if os.path.isfile(logfile):
-        print(YELLOW + f" [Warning] {logfile} exists in {phasedir} folder for {fname}" + ENDC)
+        if verbose > 0:
+          print(YELLOW + f" [Warning] {logfile} exists in {phasedir} folder for {fname}" + ENDC)
       else:
         if phase == 'liquid':
           liquidsh = fname + '.sh'
@@ -191,10 +192,10 @@ def bar():
         elb1, vlb1 = orderparams[i+1]
         if elb1 > 1.0:
           elb0, vlb0 = 1.0, 1.0 
-        elb0 = "%03d"%int(elb0*100)
-        elb1 = "%03d"%int(elb1*100)
-        vlb0 = "%03d"%int(vlb0*100)
-        vlb1 = "%03d"%int(vlb1*100)
+        elb0 = "%03d"%round(elb0*100)
+        elb1 = "%03d"%round(elb1*100)
+        vlb0 = "%03d"%round(vlb0*100)
+        vlb1 = "%03d"%round(vlb1*100)
         fname0 = "%s-e%s-v%s"%(phase, elb0, vlb0)
         fname1 = "%s-e%s-v%s"%(phase, elb1, vlb1)
         arcfile0 = fname0 + ".arc"
@@ -240,7 +241,8 @@ def bar():
             if (int(elb1) > 100):
               os.system(f"mv {liquidbarname} {homedir}/{phase}/{fepdir}")
           else:
-            print(YELLOW + f" [Warning] {barfile} exists in {barfiledir} folder! " + ENDC)
+            if verbose > 0:
+              print(YELLOW + f" [Warning] {barfile} exists in {barfiledir} folder! " + ENDC)
         
         if phase == 'gas':
           printname = fname1
@@ -260,7 +262,8 @@ def bar():
               if (int(elb1) > 100):
                 os.system(f"mv {gasbarname} {homedir}/{phase}/{fepdir}")
             else:
-              print(YELLOW + f" [Warning] {barfile} exists in {barfiledir} folder!" + ENDC)
+              if verbose > 0:
+                print(YELLOW + f" [Warning] {barfile} exists in {barfiledir} folder!" + ENDC)
     # submit jobs to clusters 
     for phase in phases:
       phasedir = os.path.join(homedir, phase)
@@ -360,6 +363,7 @@ def result():
     
     print(YELLOW + "    %20s%20s%27s%20s"%("GAS", "LIQUID", "GAS+LIQUID", "GAS+LIQUID+FE0") + ENDC)
     fo.write("    %20s%20s%27s%20s\n"%("GAS", "LIQUID", "GAS+LIQUID", "GAS+LIQUID+FE0"))
+    print('LEN', len(fep_FEliquid))
     for i in range(len(fep_FEliquid)): 
       feg = 0.0
       if ignoregas == 0:
@@ -461,7 +465,9 @@ if __name__ == "__main__":
       FEsimsettings = yaml.load(f,Loader=yaml.Loader)
   
   global verbose
-  verbose = int(FEsimsettings['verbose'])
+  verbose = 1
+  if 'verbose' in FEsimsettings.keys():
+    verbose = int(FEsimsettings['verbose'])
   
   global prm, checkingtime
   lig = FEsimsettings['gas_xyz'] 
