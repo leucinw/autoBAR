@@ -19,7 +19,7 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
   for phase in phases:
     for i in range(len(orderparams)):
       elb, vlb = orderparams[i]
-      fname = "%s-e%s-v%s"%(phase, "%03d"%int(elb*100), "%03d"%int(vlb*100))
+      fname = "%s-e%s-v%s"%(phase, "%03d"%round(elb*100), "%03d"%round(vlb*100))
       arcfile = fname + ".arc"
       if os.path.isfile(os.path.join(homedir, phase, arcfile)):
         simsnapshot = 0
@@ -32,7 +32,7 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
         checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
         simsnapshot = int(checkstr)
         if (simsnapshot == phase_simsnapshot[phase]):
-          per = int(simsnapshot/phase_simsnapshot[phase]*100)
+          per = (simsnapshot/phase_simsnapshot[phase]*100)
           if verbose > 0:
             print(GREEN + f"{fname:>20s}: " + u'\u2584'*(int(per/2))  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(True)
@@ -72,10 +72,10 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose):
       if (elb1 > 1.0):
         elb0, vlb0 = 1.0, 1.0 
       
-      elb0 = "%03d"%int(elb0*100)
-      elb1 = "%03d"%int(elb1*100)
-      vlb0 = "%03d"%int(vlb0*100)
-      vlb1 = "%03d"%int(vlb1*100)
+      elb0 = "%03d"%round(elb0*100)
+      elb1 = "%03d"%round(elb1*100)
+      vlb0 = "%03d"%round(vlb0*100)
+      vlb1 = "%03d"%round(vlb1*100)
       fname0 = "%s-e%s-v%s"%(phase, elb0, vlb0)
       fname1 = "%s-e%s-v%s"%(phase, elb1, vlb1)
       
