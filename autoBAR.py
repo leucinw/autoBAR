@@ -135,31 +135,22 @@ def dynamic():
   # submit jobs to clusters 
   for phase in phases:
     phasedir = os.path.join(homedir, phase)
-    os.chdir(phasedir)
+    # os.chdir(phasedir)
     hoststr = os.getenv('HOSTNAME').split('.')[0]
     timestr = str(time.time()).replace('.', '')
-    jobpooldir = "/home/liuchw/bin/JobPool/"
+    jobpooldir = os.environ["JOBPOOL"]
+    tinkerpath = os.environ["TINKERPATH"]
     scriptfile = os.path.join(jobpooldir, f"{hoststr}-{timestr}.sh")
     if (phase == 'gas') and (gasshs != []):
-      if os.getlogin() == 'liuchw':
-        shstr = f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(gasshs)} -t CPU -n 4 -p {phasedir}"
-        print(GREEN + ' ' + shstr + ENDC)
-        with open(scriptfile, 'w') as f:
-          f.write(shstr)
-      else:  
-        shstr = f"python {submitexe} -x {' '.join(gasshs)} -t CPU -nodes {' '.join(nodes)} -n 4 -p {phasedir}"
-        print(GREEN + ' ' + shstr + ENDC)
-        os.system(shstr)
+      shstr = f"python {tinkerpath}/submitTinker.py -x {' '.join(gasshs)} -t CPU -n 4 -p {phasedir}"
+      print(GREEN + ' ' + shstr + ENDC)
+      with open(scriptfile, 'w') as f:
+        f.write(shstr)
     if (phase == 'liquid') and (liquidshs != []):
-      if os.getlogin() == 'liuchw':
-        shstr = f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join(liquidshs)} -t GPU -p {phasedir}"
-        print(GREEN + ' ' + shstr + ENDC)
-        with open(scriptfile, 'w') as f:
-          f.write(shstr)
-      else:  
-        shstr = f"python {submitexe} -x {' '.join(liquidshs)} -t GPU -nodes {' '.join(nodes)} -p {phasedir}"
-        print(GREEN + ' ' + shstr + ENDC)
-        os.system(shstr)
+      shstr = f"python {tinkerpath}/submitTinker.py -x {' '.join(liquidshs)} -t GPU -p {phasedir}"
+      print(GREEN + ' ' + shstr + ENDC)
+      with open(scriptfile, 'w') as f:
+        f.write(shstr)
   return
 
 def bar():
@@ -266,18 +257,23 @@ def bar():
                 print(YELLOW + f" [Warning] {barfile} exists in {barfiledir} folder!" + ENDC)
     # submit jobs to clusters 
     for phase in phases:
-      phasedir = os.path.join(homedir, phase)
-      os.chdir(phasedir)
+      # phasedir = os.path.join(homedir, phase)
+      # os.chdir(phasedir)
+      hoststr = os.getenv('HOSTNAME').split('.')[0]
+      timestr = str(time.time()).replace('.', '')
+      jobpooldir = os.environ["JOBPOOL"]
+      tinkerpath = os.environ["TINKERPATH"]
+      scriptfile = os.path.join(jobpooldir, f"{hoststr}-{timestr}.sh")
       if (phase == 'gas') and (gasshs != []):
-        if os.getlogin() == 'liuchw':
-          os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join([x[0] for x in gasshs])} -t CPU -n 4 -p {' '.join([x[1] for x in gasshs])}")
-        else:
-          os.system(f"python {submitexe} -x {' '.join([x[0] for x in gasshs])} -t CPU -n 4 -p {' '.join([x[1] for x in gasshs])} -nodes {' '.join(nodes)}")
+        shstr = f"python {tinkerpath}/submitTinker.py -x {' '.join([x[0] for x in gasshs])} -t CPU -n 4 -p {' '.join([x[1] for x in gasshs])}"
+        print(GREEN + ' ' + shstr + ENDC)
+        with open(scriptfile, 'w') as f:
+          f.write(shstr)
       if (phase == 'liquid') and (liquidshs != []):
-        if os.getlogin() == 'liuchw':
-          os.system(f"python /home/liuchw/bin/TinkerGPU2022/submitTinker.py -x {' '.join([x[0] for x in liquidshs])} -t GPU -p {' '.join([x[1] for x in liquidshs])}")
-        else:
-          os.system(f"python {submitexe} -x {' '.join([x[0] for x in liquidshs])} -t GPU -p {' '.join([x[1] for x in liquidshs])} -nodes {' '.join(nodes)}")
+        shstr = f"python {tinkerpath}/submitTinker.py -x {' '.join([x[0] for x in liquidshs])} -t GPU -p {' '.join([x[1] for x in liquidshs])}"
+        print(GREEN + ' ' + shstr + ENDC)
+        with open(scriptfile, 'w') as f:
+          f.write(shstr)
   return
 
 def result():
@@ -475,14 +471,6 @@ if __name__ == "__main__":
   checkingtime = FEsimsettings["checking_time"]
   global natom
   natom = int(open(lig).readlines()[0].split()[0])
-  global nodes
-  try:
-    nodes = FEsimsettings["node_list"]
-  except:
-    if os.getlogin() != 'liuchw':
-      sys.exit(RED + "node_list must be provided" + ENDC)
-    else:
-      pass
  
   if inputaction == 'opt':
     global expt_fe, tuning_parms 
@@ -493,20 +481,6 @@ if __name__ == "__main__":
     expt_fe = FEsimsettings["expt_fe"]
     tuning_parms = FEsimsettings["tuning_parms"]
     
-  # special list for liuchw
-  if os.getlogin() == 'liuchw':
-    nodes = []
-    lines = open('/home/liuchw/bin/TinkerGPU2022/nodes.dat').readlines()
-    for line in lines:
-      if ("GPU " in line) and ("#" not in line[0]):
-        d = line.split()
-        if d[1] not in nodes:
-          nodes.append(d[1])
-  
-  if nodes == None:
-    sys.exit(RED + "[Error] node_list must be provided" + ENDC) 
-  global submitexe
-  submitexe = os.path.join(rootdir, "utils", "submitTinker.py")
   global tinkerenv 
   tinkerenv = os.path.join(rootdir, "dat", "tinker.env")
   global orderparams

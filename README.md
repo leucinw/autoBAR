@@ -3,6 +3,10 @@
 
 A light-weighted automation tool for alchemical free energy simulations with the [Bennett Acceptance Ratio (BAR)](https://en.wikipedia.org/wiki/Bennett_acceptance_ratio) method using the polarizable AMOEBA and AMOEBA+ force fields.
 
+# Attention
+
+This branch contains modification for use with `Software-mod/forcebalance-1.7.5`. Please use the main branch if you use `autoBAR` alone.
+
 # Prerequisite
 - python modules: `ruamel.yaml` and `numpy`. (Hint: one can use `pip` or `conda` to install easily)
 - compiled software: `Tinker` and `Tinker9`. (Note: Nothing need to do for Ren lab members).

@@ -8,8 +8,8 @@
 # Global settings
 lambda_window: courser        # A series of lambdas to scale ele/vdw interactions. Can be "COURSER" or "DEFAULT", case insensitive
 checking_time: 120.0          # Time interval (in second) used by autoBAR.py to check the dynamic and bar process
-copy_arc_for_perturb: YES     # Only used if a "xxx.prm_" file exists. YES/True: copy the existing ".arc" file; No/False: re-run dynamic to generate ".arc" file
-verbose: 1                    # set to 0 to see less printing info.
+copy_arc_for_perturb: False     # Only used if a "xxx.prm_" file exists. YES/True: copy the existing ".arc" file; No/False: re-run dynamic to generate ".arc" file
+verbose: 0                    # For ForceBalance run, use 0 to print out less infomation, otherwise, use non-zero value
 
 # Input files
 ## Files MUST be provided
@@ -19,18 +19,18 @@ parameters: final.prm         # Tinker parameter file
 ## Files optionally needed (comment out if necessary) 
 liquid_key: liquid.key        # Optional. User's customized liquid key file
 gas_key: gas.key              # Optional. User's customized gas key file
-lambda_window_file: x.dat     # Optional. User's customized lambda window file
+# lambda_window_file: x.dat     # Optional. User's customized lambda window file
 
 # Molecular dynamics simulation settings
 ## liquid (solution) phase
-liquid_md_total_time: 1.25    # Simulation time for liquid (in ns)
+liquid_md_total_time: 2.5    # Simulation time for liquid (in ns)
 liquid_md_time_step: 2.0      # Integration time step (in fs)
 liquid_md_write_freq: 1.0     # Write out frequency (in ps)
 liquid_md_ensemble: NPT       # Liquid MD ensemble (NPT or NVT)
-liquid_md_temperature: 300.0  # Liquid MD temperature (in Kelvin)
-liquid_md_pressure: 1.0       # Liquid MD temperature (in atm.)
+liquid_md_temperature: 298.0  # Liquid MD temperature (in Kelvin)
+liquid_md_pressure: 1.0       # Liquid MD pressure (in atm.)
 ## gas phase (can be turned off if set gas_md_total_time to 0)
-gas_md_total_time: 1.25       # Simulation time for gas (in ns)
+gas_md_total_time: 0.5       # Simulation time for gas (in ns)
 gas_md_time_step:  0.1        # Integration time step (in fs)
-gas_md_write_freq: 1.0        # Write out frequency (in ps)
-gas_md_temperature: 300.0     # Gas MD temperature (in Kelvin)
+gas_md_write_freq: 0.1        # Write out frequency (in ps)
+gas_md_temperature: 298.0     # Gas MD temperature (in Kelvin)
