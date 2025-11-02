@@ -29,6 +29,8 @@ def setup():
     gasminsh = 'gas-min.sh'
     if phase == 'gas':
       with open(gasminsh, 'w') as f:
+        if fbenv:
+          f.write(f'source {fbenv}\n')
         f.write(f'source {tinkerenv}\n')
         f.write(f'{phase_minimize[phase]} {xyzfile} -key gas.key 0.1 > gas-min.log \n')
         f.write(f'wait\nmv {phase_xyz[phase]}_2 {phase_xyz[phase]}\n')
@@ -37,6 +39,8 @@ def setup():
     liquidminsh = 'liquid-min.sh'
     if phase == 'liquid':
       with open(liquidminsh, 'w') as f:
+        if fbenv:
+          f.write(f'source {fbenv}\n')
         f.write(f'source {tinkerenv}\n')
         f.write(f'{phase_minimize[phase]} {xyzfile} -key liquid.key 0.2 > liquid-min.log\n')
         f.write(f'wait\nmv {phase_xyz[phase]}_2 {phase_xyz[phase]}\n')
@@ -120,6 +124,8 @@ def dynamic():
           liquidsh = fname + '.sh'
           liquidshs.append(liquidsh)
           with open(liquidsh, 'w') as f:
+            if fbenv:
+              f.write(f'source {fbenv}\n')
             f.write(f'source {tinkerenv}\n')
             if liquidensemble == "NPT":
               f.write(f'{phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 4 {liquidT} {liquidP} > {logfile}\n')
@@ -129,6 +135,8 @@ def dynamic():
           gassh = fname + '.sh'
           gasshs.append(gassh)
           with open(gassh, 'w') as f:
+            if fbenv:
+              f.write(f'source {fbenv}\n')
             f.write(f'source {tinkerenv}\n')
             f.write(f"{phase_dynamic[phase]} {xyzfile} -key {keyfile} {gastotalstep} {gastimestep} {gaswriteout} 2 {gastemperature} > {logfile}\n")
   
@@ -224,6 +232,8 @@ def bar():
           
           if (not os.path.isfile(barfiledir + "/" + barfile)):
             with open(liquidbarname, 'w') as f:
+              if fbenv:
+                f.write(f'source {fbenv}\n')
               f.write(f"source {tinkerenv}\n")
               f.write(f"{liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && \n")
               f.write(f"{liquidbarexe} 2 {barfile} {startsnapshot} {liquidtotalsnapshot} 1 {startsnapshot} {liquidtotalsnapshot} 1 > {enefile} \n")
@@ -245,6 +255,8 @@ def bar():
           if gastotaltime != 0:
             if (not os.path.isfile(barfiledir + '/' + barfile)):
               with open(gasbarname, 'w') as f:
+                if fbenv:
+                  f.write(f'source {fbenv}\n')
                 f.write(f"source {tinkerenv}\n")
                 f.write(f"{gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && \n")
                 f.write(f"{gasbarexe} 2 {barfile} {startsnapshot} {gastotalsnapshot} 1 {startsnapshot} {gastotalsnapshot} 1 > {enefile} \n")
@@ -481,6 +493,8 @@ if __name__ == "__main__":
     expt_fe = FEsimsettings["expt_fe"]
     tuning_parms = FEsimsettings["tuning_parms"]
     
+  global fbenv
+  fbenv = os.getenv("FBBASHRC")
   global tinkerenv 
   tinkerenv = os.path.join(rootdir, "dat", "tinker.env")
   global orderparams
@@ -585,7 +599,7 @@ if __name__ == "__main__":
     print(YELLOW + f"[Warning] No box info in {box}. Can be in liquid.key instead." + ENDC)
   else:
     [a,b,c] = lines[1].split()[0:3]
-    if min([float(a), float(b), float(c)]) < 30.0:
+    if min([float(a), float(b), float(c)]) < 29.0:
       sys.exit(RED + f"[Error] Please provide a bigger box (>30*30*30)" + ENDC)
   lines = open(lig).readlines()
   natomgas = int(lines[0].split()[0])
@@ -600,7 +614,7 @@ if __name__ == "__main__":
     phases.insert(0,'gas')
     if not os.path.isdir('gas'):
       os.system("mkdir gas")
-  
+
   actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result, 'opt':opt}
   if inputaction in actions.keys():
     actions[inputaction]()
