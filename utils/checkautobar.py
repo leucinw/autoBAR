@@ -32,7 +32,7 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
         checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
         simsnapshot = int(checkstr)
         if (simsnapshot == phase_simsnapshot[phase]):
-          per = (simsnapshot/phase_simsnapshot[phase]*100)
+          per = int(simsnapshot/phase_simsnapshot[phase]*100)
           if verbose > 0:
             print(GREEN + f"{fname:>20s}: " + u'\u2584'*(int(per/2))  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(True)
@@ -112,14 +112,17 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose):
   for enefile in gasenes + liquidenes + fep_gasenes + fep_liquidenes:
     if not os.path.isfile(enefile):
       if verbose > 0:
-        print(RED + " " + fname + f": free energy file (.ene) not found!" + ENDC)
+        print(RED + " " + enefile + f": free energy file not found!" + ENDC)
       statuslist.append(False) 
     else:
       lines = open(enefile).readlines()
       barfinished = False
       for line in lines[-5:]:
-        if "BAR Estimate of -T*dS" in line:
+        if "BAR Estimate of -T*dS" in line or "BAR Estimate -T*dS" in line:
           barfinished = True
+      if not barfinished:
+        if verbose > 0:
+          print(YELLOW + " " + enefile + f": BAR analysis is still running!" + ENDC)
       statuslist.append(barfinished)
 
   finished = statuslist.count(True)
