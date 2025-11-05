@@ -32,7 +32,7 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
         checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
         simsnapshot = int(checkstr)
         if (simsnapshot == phase_simsnapshot[phase]):
-          per = (simsnapshot/phase_simsnapshot[phase]*100)
+          per = int(simsnapshot/phase_simsnapshot[phase]*100)
           if verbose > 0:
             print(GREEN + f"{fname:>20s}: " + u'\u2584'*(int(per/2))  + f" [{per:>3d}%]" + ENDC)
           statuslist.append(True)
