@@ -15,7 +15,6 @@ import ruamel.yaml as yaml
 from datetime import datetime
 from utils.checkautobar import *
 from utils.elescale import *
-from scipy.optimize import least_squares
 
 def setup():
   for phase in phases:
@@ -374,75 +373,9 @@ def result():
     fo.close()
   return
 
-def opt():
-  print(GREEN + " Optimizing parameters ..." + ENDC)
-  p_init = []
-  terms = []
-  types = []
-  indices = []
-  deltas = []
-  for t in tuning_parms:
-    s = t.split("_")
-    terms.append(s[0])
-    types.append(s[1])
-    indices.append(int(s[2]))
-    deltas.append(float(s[3]))
-  
-  lines = open(prm).readlines()
-  for line in lines:
-    ss = line.split()
-    if len(ss) > 3:
-      for i in range(len(terms)):
-        if (ss[0] == terms[i]) and (ss[1] == types[i]):
-          p_init.append(float(ss[indices[i]]))
-  p_init = np.array(p_init)
-
-  def write_ff(p):
-    with open(prm + "_10", 'w') as f:
-      k = 0
-      for line in lines:
-        tuning = False
-        ss = line.split()
-        if len(ss) > 3:
-          for i in range(len(terms)):
-            if (ss[0] == terms[i]) and (ss[1] == types[i]):
-              ss[indices[i]] = f"{p[k]:10.5f}"
-              k += 1
-              tuning = True
-        if tuning:
-          line = '  '.join(ss) + "\n"
-        f.write(line)
-    return
-  
-  def sp_fe(p):
-    restraint_factor = 1.0
-    os.system(f"rm -f result.txt {prm}_10")
-    if not np.array_equal(p, p_init):
-      write_ff(p)
-      os.system("rm -f result.txt */*200* liquid/liquid-e100-v100.{bar,ene}")
-    
-    cmdstr = f"python {os.path.join(rootdir, 'autoBAR.py')} auto"
-    os.system(cmdstr)
-    
-    while True:
-      if not os.path.isfile('result.txt'):
-        time.sleep(30.0)
-      else:
-        calc_fe = float(open('result.txt').readlines()[-2].split()[-2])
-        break 
-    return np.array([calc_fe - expt_fe] + list((p-p_init)*restraint_factor))
- 
-  upper_bound = []
-  lower_bound = []
-  for i in range(len(p_init)):
-    upper_bound.append(p_init[i] + deltas[i])
-    lower_bound.append(p_init[i] - deltas[i])
-  ret = least_squares(sp_fe, p_init, loss='soft_l1', bounds = (lower_bound, upper_bound), verbose=2, diff_step=1e-5, ftol=1e-3, gtol=1e-3, xtol=1e-3)
-  return
-
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
-  parser.add_argument('act', help = "Actions to take.", choices = ['setup', 'dynamic', 'bar', 'result', 'auto', 'opt'], type = str.lower) 
+  parser.add_argument('act', help = "Actions to take.", choices = ['setup', 'dynamic', 'bar', 'result', 'auto'], type = str.lower) 
   
   # colors for screen output
   global RED, ENDC, GREEN, YELLOW
@@ -484,15 +417,6 @@ if __name__ == "__main__":
     else:
       pass
  
-  if inputaction == 'opt':
-    global expt_fe, tuning_parms 
-    if "expt_fe" not in FEsimsettings.keys():
-      sys.exit(RED + " I could not find expt_fe in settings.yaml!" + ENDC)
-    if "tuning_parms" not in FEsimsettings.keys():
-      sys.exit(RED + " I could not find tuning_parms in settings.yaml!" + ENDC)
-    expt_fe = FEsimsettings["expt_fe"]
-    tuning_parms = FEsimsettings["tuning_parms"]
-    
   # special list for liuchw
   if os.getlogin() == 'liuchw':
     nodes = []
@@ -627,7 +551,7 @@ if __name__ == "__main__":
     if not os.path.isdir('gas'):
       os.system("mkdir gas")
   
-  actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result, 'opt':opt}
+  actions = {'setup':setup, 'dynamic':dynamic, 'bar':bar, 'result':result}
   if inputaction in actions.keys():
     actions[inputaction]()
   if inputaction == 'auto': 

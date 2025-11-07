@@ -39,11 +39,6 @@ In the automated mode, this program will automatically go through all steps unti
   # Run `auto`: automatically run all the above commands
   python autoBAR.py auto
   ```
-* Advanced feature
-	```shell
-	# Run `opt`: use one-step BAR to get numerical gradient of the FE w.r.t. tuning parameters, and optimize the FF parameters. The settings.yaml needs to be setup carefully!
-	python autoBAR.py opt
-	```
 
 # Examples
 
@@ -83,4 +78,4 @@ Two example systems are located in `examples` folder. They should be easy to rea
   * An `{fname}.prm_XX` file with small parameter perturbation need to be in the working directory
   * When there are multiple `{fname}.prm_XX` files, program will do multiple perturbations at the same time. (support upto 99 perturbations!)
   * No need modify the `settings.yaml` file
-  * This will be treated as the end state (two end states if involving two legs)
+  * This will be treated as the end state (two end states if involving two phases, for HFE: gas,liquid, for BE: complex,solvent)
