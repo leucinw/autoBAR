@@ -11,6 +11,7 @@ Example usage: python parmOPT.py
 """
 
 import os
+import sys
 import time
 import numpy as np
 import ruamel.yaml as yaml
@@ -26,7 +27,8 @@ def model_func(params):
     if np.all(params == initial_params):
       write_prm(params, param_file)
     else:
-      os.system('rm -f {param_file}_01')
+      os.system(f'rm -f */{param_file}_01')
+      os.system(f'rm -f {param_file}_01')
       os.system('rm -f */*e110*')
       os.system('rm -rf */FEP_01')
       write_prm(params, param_file+"_01")
@@ -57,13 +59,14 @@ def model_func(params):
 
 def write_prm(params, fname):
     lines = open(param_file).readlines()
-    os.system(f"cp {param_file} {fname}")
+    if not np.all(params == initial_params):
+      os.system(f"cp {param_file} {fname}")
     with open(fname, 'a') as f:
       line = opt_term_idx.replace('-', '   ') + '  ' + '  '.join([str(p) for p in params]) + '\n'
       f.write(line)  
     return
 
-# callback argument only valid for scipy > 1.16
+# callback function, require scipy>1.16!!
 def print_step(params):
     print(f"Current parameters: {params}")
           
@@ -76,9 +79,11 @@ def main():
     expt_hfe = float(FEsimsettings["expt_hfe"])
 
     opt_params = FEsimsettings["opt_params"]
+    params_range = FEsimsettings["params_range"]
    
     global autobar_path
-    autobar_path = "/home/liuchw/Documents/Github.leucinw/autoBAR/autoBAR.py"
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    autobar_path = os.path.join(script_dir.split('utils')[0], 'autoBAR.py')
 
     # opt_params format: "vdwpair-401-402 3.8 0.05"
     s = opt_params.split()
@@ -87,18 +92,48 @@ def main():
     global initial_params
     initial_params = np.array([float(x) for x in s[1:]])
     
-    # step size used to do finite difference
-    diff_step = np.array([0.0005, 0.0001])
+    # form the upper and lower bound
+    lb = np.zeros(len(initial_params)) 
+    ub = np.zeros(len(initial_params)) 
 
+    for i in range(len(initial_params)):
+      lb[i] = initial_params[i] - float(params_range.split()[i])
+      ub[i] = initial_params[i] + float(params_range.split()[i])
+   
+    bounds = (lb, ub)
+    
+    # diff_step
+    diff_step = 0.0001
+    # xs = x/x_scale
+    x_scale = np.array([10.0, 1.0])
+    
+    print("\n=== Optimization Settings ===")
+    print('bounds', bounds) 
+    print('initial_params', initial_params) 
+    print('diff_step', diff_step) 
+    print('x_scale', x_scale) 
+    
+    # clean up the FEP_01 files when starting
+    os.system(f'rm -f */{param_file}_01')
+    os.system(f'rm -f {param_file}_01')
+    os.system('rm -f */*e110*')
+    os.system('rm -rf */FEP_01')
+    
     # Run optimization
     result = least_squares(
         fun=model_func,
         x0=initial_params,
         jac='2-point',
         diff_step=diff_step,
+        x_scale=x_scale,
+        loss='soft_l1',
         method='trf', 
         verbose=2,
         callback=print_step,
+        bounds = bounds,
+        ftol=0.001,
+        gtol=0.001,
+        xtol=0.001,
     )
 
     print("\n=== Optimization Results ===")
