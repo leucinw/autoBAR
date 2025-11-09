@@ -11,7 +11,6 @@ Example usage: python parmOPT.py
 """
 
 import os
-import sys
 import time
 import numpy as np
 import ruamel.yaml as yaml
@@ -49,12 +48,15 @@ def model_func(params):
     for line in lines:
       if 'SUM OF ' in line:
         fe0 = float(line.split()[-2])
-      if 'FEP_01' in line:
+      if 'FEP_001' in line:
         fe1 = float(line.split()[-1])
 
+    print(f'Current params: {params}')
     if np.all(params == initial_params):
+      print(f'Current HFE: {fe0}')
       return np.array([fe0 - expt_hfe])
     else:
+      print(f'Current HFE: {fe1}')
       return np.array([fe1 - expt_hfe])
 
 def write_prm(params, fname):
@@ -102,10 +104,10 @@ def main():
    
     bounds = (lb, ub)
     
-    # diff_step
-    diff_step = 0.0001
+    # x*diff_step
+    diff_step = np.array([0.0001, 0.01])
     # xs = x/x_scale
-    x_scale = np.array([10.0, 1.0])
+    x_scale = np.array([1.0, 1.0])
     
     print("\n=== Optimization Settings ===")
     print('bounds', bounds) 
@@ -131,9 +133,9 @@ def main():
         verbose=2,
         callback=print_step,
         bounds = bounds,
-        ftol=0.001,
-        gtol=0.001,
-        xtol=0.001,
+        ftol=0.0001,
+        gtol=0.0001,
+        xtol=0.0001,
     )
 
     print("\n=== Optimization Results ===")
