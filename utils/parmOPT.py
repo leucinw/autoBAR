@@ -68,10 +68,6 @@ def write_prm(params, fname):
       f.write(line)  
     return
 
-# callback function, require scipy>1.16!!
-def print_step(params):
-    print(f"Current parameters: {params}")
-          
 def main():
     with open('settings.yaml') as f:
       FEsimsettings = yaml.load(f,Loader=yaml.Loader)
@@ -105,9 +101,14 @@ def main():
     bounds = (lb, ub)
     
     # x*diff_step
-    diff_step = np.array([0.0001, 0.01])
+    diff_step = 0.0001*np.ones(len(initial_params))
+    
+    finite_diff_step = FEsimsettings["finite_diff_step"]
+    for i in range(len(initial_params)):
+      diff_step[i] = float(finite_diff_step.split()[i])
+
     # xs = x/x_scale
-    x_scale = np.array([1.0, 1.0])
+    x_scale = np.ones(len(initial_params))
     
     print("\n=== Optimization Settings ===")
     print('bounds', bounds) 
@@ -131,7 +132,6 @@ def main():
         loss='soft_l1',
         method='trf', 
         verbose=2,
-        callback=print_step,
         bounds = bounds,
         ftol=0.0001,
         gtol=0.0001,
