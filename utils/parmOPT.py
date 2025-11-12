@@ -12,6 +12,7 @@ Example usage: python parmOPT.py
 
 import os
 import time
+import shutil
 import numpy as np
 import ruamel.yaml as yaml
 from scipy.optimize import least_squares
@@ -54,19 +55,98 @@ def model_func(params):
     print(f'Current params: {params}')
     if np.all(params == initial_params):
       print(f'Current HFE: {fe0}')
-      return np.array([fe0 - expt_hfe])
+      return np.atleast_1d([fe0 - expt_hfe])
     else:
       print(f'Current HFE: {fe1}')
-      return np.array([fe1 - expt_hfe])
+      return np.atleast_1d([fe1 - expt_hfe])
 
 def write_prm(params, fname):
     lines = open(param_file).readlines()
-    if not np.all(params == initial_params):
-      os.system(f"cp {param_file} {fname}")
+    if not (param_file == fname):
+      shutil.copy(param_file, fname)
     with open(fname, 'a') as f:
       line = opt_term_idx.replace('-', '   ') + '  ' + '  '.join([str(p) for p in params]) + '\n'
       f.write(line)  
     return
+
+def jacobian_fd(params):
+    """
+    Compute Jacobian matrix numerically using central finite difference.
+    The dynamic/bar simulations are running parallelly so there will be 
+    `2*len(params)` speedup comparing to just have model_func with jac='2-point'.
+    """
+    n_params = len(params)
+    params = np.atleast_1d(params)
+    residuals = np.atleast_1d(model_func(params))
+    m = len(residuals)
+
+    J = np.zeros((m, n_params))
+    step = diff_step * np.ones(n_params)
+    
+    if os.path.isfile('result.txt'):
+      os.system('rm -f result.txt')
+    
+    perturb_idx = 1
+    if not np.all(params == initial_params):
+      perturb_idx = 2 
+    
+    for j in range(n_params):
+      
+      # deep copy the numpy array
+      params_plus = params.copy()
+      params_minus = params.copy()
+      dp = np.zeros_like(params)
+      dp[j] = step[j]
+      
+      # plus finite difference   
+      lambda_str = f"{100 + perturb_idx*10}"
+      param_file_p = param_file + f'_{perturb_idx:02d}' 
+      os.system(f'rm -f */{param_file_p}')
+      os.system(f'rm -f {param_file_p}')
+      os.system(f'rm -rf */FEP_{perturb_idx:02d}')
+      os.system(f'rm -f */*e{lambda_str}*')
+      params_plus += dp
+      write_prm(params_plus, param_file_p)
+      perturb_idx += 1
+     
+      # minus finite difference
+      param_file_p = param_file + f'_{perturb_idx:02d}' 
+      os.system(f'rm -f */{param_file_p}')
+      os.system(f'rm -f {param_file_p}')
+      os.system(f'rm -rf */FEP_{perturb_idx:02d}')
+      os.system(f'rm -f */*e{lambda_str}*')
+      params_minus -=  dp
+      write_prm(params_minus, param_file_p)
+      perturb_idx += 1
+      
+    os.system(f'python {autobar_path} auto')
+    
+    # wait for result.txt file
+    while True:
+      if os.path.isfile('result.txt'):
+        break
+      else:
+        time.sleep(60.0)
+    
+    # read result.txt file
+    lines = open('result.txt').readlines()
+    
+    feps = []
+    for line in lines:
+      if 'FEP_' in line:
+        fep = float(line.split()[-1])
+        feps.append(fep)
+
+    for j in range(n_params):
+      if np.all(params == initial_params):
+        r_plus  = feps[j*2] 
+        r_minus = feps[j*2 + 1] 
+      else: 
+        r_plus  = feps[j*2 + 1] 
+        r_minus = feps[j*2 + 2] 
+      J[:, j] = (r_plus - r_minus) / (2 * diff_step)
+
+    return J
 
 def main():
     with open('settings.yaml') as f:
@@ -88,7 +168,7 @@ def main():
     global opt_term_idx
     opt_term_idx = s[0]
     global initial_params
-    initial_params = np.array([float(x) for x in s[1:]])
+    initial_params = np.atleast_1d([float(x) for x in s[1:]])
     
     # form the upper and lower bound
     lb = np.zeros(len(initial_params)) 
@@ -101,12 +181,9 @@ def main():
     bounds = (lb, ub)
     
     # x*diff_step
-    diff_step = 0.0001*np.ones(len(initial_params))
+    global diff_step
+    diff_step = 0.0001
     
-    finite_diff_step = FEsimsettings["finite_diff_step"]
-    for i in range(len(initial_params)):
-      diff_step[i] = float(finite_diff_step.split()[i])
-
     # xs = x/x_scale
     x_scale = np.ones(len(initial_params))
     
@@ -116,17 +193,17 @@ def main():
     print('diff_step', diff_step) 
     print('x_scale', x_scale) 
     
-    # clean up the FEP_01 files when starting
-    os.system(f'rm -f */{param_file}_01')
-    os.system(f'rm -f {param_file}_01')
-    os.system('rm -f */*e110*')
-    os.system('rm -rf */FEP_01')
+    # clean up the FEP_01...09 files when starting
+    os.system(f'rm -f */{param_file}_0?')
+    os.system(f'rm -f {param_file}_0?')
+    os.system('rm -f */*e1{10..90}*')
+    os.system('rm -rf */FEP_{01..09}')
     
     # Run optimization
     result = least_squares(
         fun=model_func,
         x0=initial_params,
-        jac='2-point',
+        jac=jacobian_fd,
         diff_step=diff_step,
         x_scale=x_scale,
         loss='soft_l1',
