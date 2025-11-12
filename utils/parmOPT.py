@@ -55,10 +55,10 @@ def model_func(params):
     print(f'Current params: {params}')
     if np.all(params == initial_params):
       print(f'Current HFE: {fe0}')
-      return np.array([fe0 - expt_hfe])
+      return np.atleast_1d([fe0 - expt_hfe])
     else:
       print(f'Current HFE: {fe1}')
-      return np.array([fe1 - expt_hfe])
+      return np.atleast_1d([fe1 - expt_hfe])
 
 def write_prm(params, fname):
     lines = open(param_file).readlines()
@@ -72,8 +72,11 @@ def write_prm(params, fname):
 def jacobian_fd(params):
     """
     Compute Jacobian matrix numerically using central finite difference.
+    The dynamic/bar simulations are running parallelly so there will be 
+    `2*len(params)` speedup comparing to just have model_func with jac='2-point'.
     """
     n_params = len(params)
+    params = np.atleast_1d(params)
     residuals = np.atleast_1d(model_func(params))
     m = len(residuals)
 
@@ -88,6 +91,7 @@ def jacobian_fd(params):
       perturb_idx = 2 
     
     for j in range(n_params):
+      
       # deep copy the numpy array
       params_plus = params.copy()
       params_minus = params.copy()
@@ -127,8 +131,6 @@ def jacobian_fd(params):
     # read result.txt file
     lines = open('result.txt').readlines()
     
-    # reset starting idx
-   
     feps = []
     for line in lines:
       if 'FEP_' in line:
@@ -137,11 +139,11 @@ def jacobian_fd(params):
 
     for j in range(n_params):
       if np.all(params == initial_params):
-        r_plus  = fep[j*2] 
-        r_minus = fep[j*2 + 1] 
+        r_plus  = feps[j*2] 
+        r_minus = feps[j*2 + 1] 
       else: 
-        r_plus  = fep[j*2 + 1] 
-        r_minus = fep[j*2 + 2] 
+        r_plus  = feps[j*2 + 1] 
+        r_minus = feps[j*2 + 2] 
       J[:, j] = (r_plus - r_minus) / (2 * diff_step)
 
     return J
@@ -166,7 +168,7 @@ def main():
     global opt_term_idx
     opt_term_idx = s[0]
     global initial_params
-    initial_params = np.array([float(x) for x in s[1:]])
+    initial_params = np.atleast_1d([float(x) for x in s[1:]])
     
     # form the upper and lower bound
     lb = np.zeros(len(initial_params)) 
