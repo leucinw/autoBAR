@@ -77,10 +77,9 @@ def jacobian_fd(params):
     """
     n_params = len(params)
     params = np.atleast_1d(params)
-    residuals = np.atleast_1d(model_func(params))
-    m = len(residuals)
-
-    J = np.zeros((m, n_params))
+    
+    # only ONE HFE data
+    J = np.zeros((1, n_params))
     step = diff_step * np.ones(n_params)
     
     if os.path.isfile('result.txt'):
