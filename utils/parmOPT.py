@@ -24,7 +24,7 @@ def model_func(params):
     if os.path.isfile('result.txt'):
       os.system('rm -f result.txt')
 
-    if np.all(params == initial_params):
+    if np.array_equal(params, initial_params):
       write_prm(params, param_file)
     else:
       os.system(f'rm -f */{param_file}_01')
@@ -53,7 +53,7 @@ def model_func(params):
         fe1 = float(line.split()[-1])
 
     print(f'Current params: {params}')
-    if np.all(params == initial_params):
+    if np.array_equal(params, initial_params):
       print(f'Current HFE: {fe0}')
       return np.atleast_1d([fe0 - expt_hfe])
     else:
@@ -86,7 +86,7 @@ def jacobian_fd(params):
       os.system('rm -f result.txt')
     
     perturb_idx = 1
-    if not np.all(params == initial_params):
+    if not np.array_equal(params, initial_params):
       perturb_idx = 2 
     
     for j in range(n_params):
@@ -137,7 +137,7 @@ def jacobian_fd(params):
         feps.append(fep)
 
     for j in range(n_params):
-      if np.all(params == initial_params):
+      if np.array_equal(params, initial_params):
         r_plus  = feps[j*2] 
         r_minus = feps[j*2 + 1] 
       else: 
