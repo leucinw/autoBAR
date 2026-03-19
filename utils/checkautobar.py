@@ -13,6 +13,34 @@ ENDC = '\033[0m'
 GREEN = '\033[92m'
 YELLOW = '\33[93m'
 
+def count_arc_snapshots(file_path):
+    if not os.path.exists(file_path):
+        return "File not found."
+
+    with open(file_path, 'rb') as f:
+        first_line = f.readline().decode().split()
+        if not first_line:
+            return 0
+        n_atoms = int(first_line[0])
+
+        second_line = f.readline().decode().split()
+        if not second_line:
+            return 1
+        stride = (n_atoms + 1) if second_line[0] == "1" else (n_atoms + 2)
+
+    # Use wc -l which is implemented in C and vastly faster than Python loops
+    result = subprocess.run(['wc', '-l', file_path],
+                            capture_output=True, text=True)
+    total_lines = int(result.stdout.split()[0])
+
+    # Handle missing trailing newline
+    with open(file_path, 'rb') as f:
+        f.seek(-1, os.SEEK_END)
+        if f.read(1) != b'\n':
+            total_lines += 1
+
+    return total_lines // stride
+
 def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, homedir, verbose):
   statuslist = []
   phase_simsnapshot = {'liquid': liquidtotalsnapshot, 'gas':gastotalsnapshot}
@@ -24,13 +52,7 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
       if os.path.isfile(os.path.join(homedir, phase, arcfile)):
         simsnapshot = 0
         # get the simulation snapshots here
-        cmd = f"head -n1 {os.path.join(homedir, phase, arcfile)} "
-        checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
-        firstline = checkstr.replace('\n', '')
-        firstline = '^' + firstline + '$'
-        cmd = f"grep '{firstline}' {os.path.join(homedir, phase, arcfile)} | wc -l"
-        checkstr = subprocess.check_output(cmd, shell=True).decode("utf-8")
-        simsnapshot = int(checkstr)
+        simsnapshot = count_arc_snapshots(os.path.join(homedir, phase, arcfile))
         if (simsnapshot == phase_simsnapshot[phase]):
           per = int(simsnapshot/phase_simsnapshot[phase]*100)
           if verbose > 0:
