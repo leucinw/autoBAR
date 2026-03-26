@@ -5,62 +5,76 @@
 #   University of Texas at Austin  #
 #===================================
 
-import os
 import numpy as np
 
+
+def _matches_keyword(tokens, keyword, atomtypes, num_type_fields=1):
+  """Check if tokens represent a parameter line matching the keyword and atom types."""
+  if tokens[0].lower() != keyword:
+    return False
+  type_fields = tokens[1:1 + num_type_fields]
+  return all(t.isdigit() and t in atomtypes for t in type_fields)
+
+
+def _scale_single_value_param(tokens, elb, prefix_count, trailing=True):
+  """Scale the value at tokens[prefix_count] and optionally append trailing tokens."""
+  scaled = "%10.5f" % (float(tokens[prefix_count]) * elb)
+  prefix = '  '.join(tokens[:prefix_count])
+  if trailing and len(tokens) > prefix_count + 1:
+    return prefix + scaled + "   " + '  '.join(tokens[prefix_count + 1:])
+  return prefix + scaled
+
+
+def _scale_values(tokens, elb):
+  """Scale all tokens as floats by elb and format them."""
+  return ''.join("%10.5f" % (float(v) * elb) for v in tokens)
+
+
 def scaledownele(xyz, prm, elb):
+  if elb == 1.0:
+    return []
+
   prmstrs = []
-  atomtypes = np.loadtxt(xyz, usecols=(5), skiprows=1, unpack=True, dtype='str')
-  prmlines = open(prm).readlines()
-  for i in range(len(prmlines)):
+  atomtypes = set(np.loadtxt(xyz, usecols=(5), skiprows=1, unpack=True, dtype='str').flat)
+
+  with open(prm) as f:
+    prmlines = f.readlines()
+
+  for i, line in enumerate(prmlines):
+    tokens = line.split()
+    if not tokens:
+      continue
+    keyword = tokens[0].lower()
+
     # for AMOEBA/AMOEBA+
-    # multipole
-    if 'multipole' in prmlines[i].lower():
-      ss = prmlines[i].split()
-      if (ss[0].lower() == 'multipole') and (ss[1].isdigit()) and (ss[1] in atomtypes):
-        if elb != 1.0:
-          prmstrs.append('  '.join(ss[:-1]) +  "%10.5f"%(float(ss[-1])*elb))
-          # dipole
-          ss = prmlines[i+1].split()
-          prmstrs.append('        %10.5f%10.5f%10.5f'%(float(ss[0])*elb, float(ss[1])*elb,float(ss[2])*elb))
-          # quadrupole 
-          ss = prmlines[i+2].split()
-          prmstrs.append('        %10.5f'%(float(ss[0])*elb))
-          ss = prmlines[i+3].split()
-          prmstrs.append('        %10.5f%10.5f'%(float(ss[0])*elb, float(ss[1])*elb))
-          ss = prmlines[i+4].split()
-          prmstrs.append('        %10.5f%10.5f%10.5f'%(float(ss[0])*elb, float(ss[1])*elb,float(ss[2])*elb))
+    # multipole (spans 5 lines: monopole, dipole, quadrupole)
+    if keyword == 'multipole' and _matches_keyword(tokens, 'multipole', atomtypes):
+      prmstrs.append('  '.join(tokens[:-1]) + "%10.5f" % (float(tokens[-1]) * elb))
+      # dipole
+      dp = prmlines[i + 1].split()
+      prmstrs.append('        ' + _scale_values(dp[:3], elb))
+      # quadrupole
+      q1 = prmlines[i + 2].split()
+      prmstrs.append('        ' + _scale_values(q1[:1], elb))
+      q2 = prmlines[i + 3].split()
+      prmstrs.append('        ' + _scale_values(q2[:2], elb))
+      q3 = prmlines[i + 4].split()
+      prmstrs.append('        ' + _scale_values(q3[:3], elb))
 
-    # polarize
-    if 'polarize' in prmlines[i].lower():
-      ss = prmlines[i].split()
-      if (ss[0].lower() == 'polarize') and (ss[1].isdigit()) and (ss[1] in atomtypes):
-        if elb != 1.0:
-          prmstrs.append('  '.join(ss[0:2]) +  "%10.5f   "%(float(ss[2])*elb) + '  '.join(ss[3:]))
+    # polarize, charge transfer, charge penetration (same pattern: scale 3rd field)
+    elif keyword in ('polarize', 'chgtrn', 'chgpen'):
+      if _matches_keyword(tokens, keyword, atomtypes):
+        prmstrs.append(_scale_single_value_param(tokens, elb, prefix_count=2))
 
-    # for AMOEBA+
-    # charge transfer
-    if 'chgtrn' in prmlines[i].lower():
-      ss = prmlines[i].split()
-      if (ss[0].lower() == 'chgtrn') and (ss[1].isdigit()) and (ss[1] in atomtypes):
-        if elb != 1.0:
-          prmstrs.append('  '.join(ss[0:2]) +  "%10.5f   "%(float(ss[2])*elb) + '  '.join(ss[3:]))
-    # charge penetration
-    if 'chgpen' in prmlines[i].lower():
-      ss = prmlines[i].split()
-      if (ss[0].lower() == 'chgpen') and (ss[1].isdigit()) and (ss[1] in atomtypes):
-        if elb != 1.0:
-          prmstrs.append('  '.join(ss[0:2]) +  "%10.5f   "%(float(ss[2])*elb) + '  '.join(ss[3:]))
-    # bndcflux
-    if 'bndcflux' in prmlines[i].lower():
-      ss = prmlines[i].split()
-      if (ss[0].lower() == 'bndcflux') and (ss[1].isdigit()) and (ss[1] in atomtypes) and (ss[2] in atomtypes):
-        if elb != 1.0:
-          prmstrs.append('  '.join(ss[0:3]) +  "%10.5f"%(float(ss[3])*elb))
-    # angcflux
-    if 'angcflux' in prmlines[i].lower():
-      ss = prmlines[i].split()
-      if (ss[0].lower() == 'angcflux') and (ss[1].isdigit()) and (ss[1] in atomtypes) and (ss[2] in atomtypes) and (ss[3] in atomtypes):
-        if elb != 1.0:
-          prmstrs.append('  '.join(ss[0:4]) +  "%10.5f%10.5f%10.5f%10.5f"%(float(ss[4])*elb,float(ss[5])*elb,float(ss[6])*elb,float(ss[7])*elb))
+    # bndcflux (2 atom-type fields, scale 4th field)
+    elif keyword == 'bndcflux':
+      if _matches_keyword(tokens, 'bndcflux', atomtypes, num_type_fields=2):
+        prmstrs.append(_scale_single_value_param(tokens, elb, prefix_count=3, trailing=False))
+
+    # angcflux (3 atom-type fields, scale fields 4-7)
+    elif keyword == 'angcflux':
+      if _matches_keyword(tokens, 'angcflux', atomtypes, num_type_fields=3):
+        prefix = '  '.join(tokens[:4])
+        prmstrs.append(prefix + _scale_values(tokens[4:8], elb))
+
   return prmstrs
