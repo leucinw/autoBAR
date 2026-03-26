@@ -26,7 +26,7 @@ def check_cpu_avail(node, nproc_required):
   
   try:
     # occupied nproc
-    cmd = f'ssh {node} "top -n1 -b" | grep " R \| S " '
+    cmd = f'ssh {node} "top -n1 -b" | grep " R \\| S " '
     sp_ret = subprocess.check_output(cmd, timeout=10.0, shell=True).decode("utf-8").split('\n')[:-1]
     tot_occ = 0 
     for r in sp_ret:
