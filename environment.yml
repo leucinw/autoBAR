@@ -1,0 +1,8 @@
+name: autobar
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - numpy
+  - scipy
+  - ruamel.yaml<0.18
