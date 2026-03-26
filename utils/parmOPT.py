@@ -102,8 +102,8 @@ def write_prm(params, fname):
     param_file = _config["param_file"]
     opt_term_idx = _config["opt_term_idx"]
 
-    with open(param_file) as f:
-        f.readlines()  # validate the file is readable
+    if not os.path.isfile(param_file):
+        raise FileNotFoundError(f"Parameter file not found: {param_file}")
     if param_file != fname:
         shutil.copy(param_file, fname)
     with open(fname, 'a') as f:
