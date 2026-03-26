@@ -79,6 +79,8 @@ def parse_ene_file(path: str) -> tuple:
   Tries 'BAR Iteration' first, then falls back to 'BAR Bootstrap'.
   Raises ValueError if neither is found.
   """
+  # BAR Iteration takes precedence over BAR Bootstrap when both are present.
+  # Bootstrap is recorded only on its first occurrence (fallback only).
   iteration_result = None
   bootstrap_result = None
   with open(path) as fh:
@@ -440,7 +442,8 @@ if __name__ == "__main__":
   box = FEsimsettings['box_xyz']
   cfg.prm = FEsimsettings["parameters"]
   cfg.checkingtime = FEsimsettings["checking_time"]
-  cfg.natom = int(open(lig).readlines()[0].split()[0])
+  with open(lig) as fh:
+    cfg.natom = int(fh.readline().split()[0])
 
   cfg.nodes = FEsimsettings.get("node_list", None)
   if cfg.nodes is None:
@@ -450,12 +453,12 @@ if __name__ == "__main__":
   # developer-only: special node list for liuchw
   if os.getlogin() == 'liuchw':
     cfg.nodes = []
-    lines = open('/home/liuchw/bin/TinkerGPU2022/nodes.dat').readlines()
-    for line in lines:
-      if ("GPU " in line) and ("#" not in line[0]):
-        d = line.split()
-        if d[1] not in cfg.nodes:
-          cfg.nodes.append(d[1])
+    with open('/home/liuchw/bin/TinkerGPU2022/nodes.dat') as fh:
+      for line in fh:
+        if ("GPU " in line) and ("#" not in line[0]):
+          d = line.split()
+          if d[1] not in cfg.nodes:
+            cfg.nodes.append(d[1])
 
   if cfg.nodes is None:
     sys.exit(RED + "[Error] node_list must be provided" + ENDC)
@@ -478,10 +481,11 @@ if __name__ == "__main__":
 
   cfg.manualelescale = FEsimsettings.get('manual_ele_scale', False)
 
-  for line in open(orderprmfile).readlines():
-    if "#" not in line:
-      d = line.split()
-      cfg.orderparams.append([float(d[0]), float(d[1])])
+  with open(orderprmfile) as fh:
+    for line in fh:
+      if "#" not in line:
+        d = line.split()
+        cfg.orderparams.append([float(d[0]), float(d[1])])
 
   cfg.copyarcforperturb = False
   if "copy_arc_for_perturb" in FEsimsettings:
@@ -499,7 +503,8 @@ if __name__ == "__main__":
   liquidkey = FEsimsettings.get('liquid_key', str(Path(cfg.rootdir, "dat", "liquid.key")))
   if 'liquid_key' in FEsimsettings:
     print(YELLOW + f"[Warning] You are responsible for your {liquidkey}" + ENDC)
-  liquidkeylines = open(liquidkey).readlines()
+  with open(liquidkey) as fh:
+    liquidkeylines = fh.readlines()
 
   liquidmdexe = '$DYNAMIC9'
   liquidminexe = '$MINIMIZE9'
@@ -522,7 +527,8 @@ if __name__ == "__main__":
   gaskey = FEsimsettings.get('gas_key', str(Path(cfg.rootdir, "dat", "gas.key")))
   if 'gas_key' in FEsimsettings:
     print(YELLOW + f"[Warning] You are responsible for your {gaskey}" + ENDC)
-  gaskeylines = open(gaskey).readlines()
+  with open(gaskey) as fh:
+    gaskeylines = fh.readlines()
 
   gasmdexe = '$DYNAMIC8'
   gasminexe = '$MINIMIZE8'
@@ -540,7 +546,8 @@ if __name__ == "__main__":
   cfg.phase_minimize = {'liquid': liquidminexe, 'gas': gasminexe}
 
   # check xyz files
-  lines = open(box).readlines()
+  with open(box) as fh:
+    lines = fh.readlines()
   natomliquid = int(lines[0].split()[0])
   if natomliquid != len(lines)-2:
     print(YELLOW + f"[Warning] No box info in {box}. Can be in liquid.key instead." + ENDC)
@@ -548,7 +555,8 @@ if __name__ == "__main__":
     [a, b, c] = lines[1].split()[0:3]
     if min([float(a), float(b), float(c)]) < 30.0:
       sys.exit(RED + f"[Error] Please provide a bigger box (>30*30*30)" + ENDC)
-  lines = open(lig).readlines()
+  with open(lig) as fh:
+    lines = fh.readlines()
   natomgas = int(lines[0].split()[0])
   if natomgas < 5:
     cfg.gastotaltime = 0.0

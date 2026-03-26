@@ -16,8 +16,9 @@ def scaledownele(xyz, prm, elb):
     are modified.
     """
     prmstrs = []
-    atomtypes = set(np.loadtxt(xyz, usecols=(5,), skiprows=1, dtype=str).tolist())
-    prmlines = open(prm).readlines()
+    atomtypes = set(np.loadtxt(xyz, usecols=(5,), skiprows=1, dtype=str).flat)
+    with open(prm) as fh:
+        prmlines = fh.readlines()
     for i, line in enumerate(prmlines):
         # for AMOEBA/AMOEBA+
         # multipole
