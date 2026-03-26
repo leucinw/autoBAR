@@ -10,6 +10,7 @@ import sys
 import glob
 import time
 import shutil
+import getpass
 import argparse
 import subprocess
 import numpy as np
@@ -179,11 +180,13 @@ def dynamic():
     phasedir = os.path.join(homedir, phase)
     os.chdir(phasedir)
     if phase == 'gas' and gasshs:
-      shstr = f"python {submitexe} -x {' '.join(gasshs)} -t CPU -nodes {' '.join(nodes)} -n 4 -p {phasedir}"
+      nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
+      shstr = f"python {submitexe} -x {' '.join(gasshs)} -t CPU{nodes_arg} -n 4 -p {phasedir}"
       print(GREEN + ' ' + shstr + ENDC)
       subprocess.run(shstr, shell=True, check=False)
     if phase == 'liquid' and liquidshs:
-      shstr = f"python {submitexe} -x {' '.join(liquidshs)} -t GPU -nodes {' '.join(nodes)} -p {phasedir}"
+      nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
+      shstr = f"python {submitexe} -x {' '.join(liquidshs)} -t GPU{nodes_arg} -p {phasedir}"
       print(GREEN + ' ' + shstr + ENDC)
       subprocess.run(shstr, shell=True, check=False)
   return
@@ -294,10 +297,12 @@ def bar():
     phasedir = os.path.join(homedir, phase)
     os.chdir(phasedir)
     if phase == 'gas' and gasshs:
-      cmd = f"python {submitexe} -x {' '.join([x[0] for x in gasshs])} -t CPU -n 4 -p {' '.join([x[1] for x in gasshs])} -nodes {' '.join(nodes)}"
+      nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
+      cmd = f"python {submitexe} -x {' '.join([x[0] for x in gasshs])} -t CPU -n 4 -p {' '.join([x[1] for x in gasshs])}{nodes_arg}"
       subprocess.run(cmd, shell=True, check=False)
     if phase == 'liquid' and liquidshs:
-      cmd = f"python {submitexe} -x {' '.join([x[0] for x in liquidshs])} -t GPU -p {' '.join([x[1] for x in liquidshs])} -nodes {' '.join(nodes)}"
+      nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
+      cmd = f"python {submitexe} -x {' '.join([x[0] for x in liquidshs])} -t GPU -p {' '.join([x[1] for x in liquidshs])}{nodes_arg}"
       subprocess.run(cmd, shell=True, check=False)
   return
 
@@ -400,7 +405,10 @@ if __name__ == "__main__":
   global nodes
   nodes = FEsimsettings.get("node_list")
   if nodes is None:
-    sys.exit(RED + "[Error] node_list must be provided in settings.yaml" + ENDC)
+    if getpass.getuser() != "liuchw":
+      sys.exit(RED + "[Error] node_list must be provided in settings.yaml" + ENDC)
+    else:
+      nodes = []
 
   global submitexe
   submitexe = os.path.join(rootdir, "utils", "submitTinker.py")
