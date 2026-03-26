@@ -507,7 +507,10 @@ if __name__ == "__main__":
   if natomliquid != len(boxlines) - 2:
     print(YELLOW + f"[Warning] No box info in {box}. Can be in liquid.key instead." + ENDC)
   else:
-    a, b, c = [float(x) for x in boxlines[1].split()[0:3]]
+    box_tokens = boxlines[1].split()
+    if len(box_tokens) < 3:
+      sys.exit(RED + f"[Error] Box file {box} line 2 must contain at least 3 values for box dimensions (a, b, c)" + ENDC)
+    a, b, c = float(box_tokens[0]), float(box_tokens[1]), float(box_tokens[2])
     if min(a, b, c) < 30.0:
       sys.exit(RED + "[Error] Please provide a bigger box (>30*30*30)" + ENDC)
 

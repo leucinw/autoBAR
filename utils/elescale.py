@@ -35,7 +35,7 @@ def scaledownele(xyz, prm, elb):
     return []
 
   prmstrs = []
-  atomtypes = set(np.loadtxt(xyz, usecols=(5), skiprows=1, unpack=True, dtype='str').flat)
+  atomtypes = set(np.loadtxt(xyz, usecols=(5,), skiprows=1, unpack=True, dtype='str').flat)
 
   with open(prm) as f:
     prmlines = f.readlines()
