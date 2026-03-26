@@ -40,7 +40,7 @@ def check_cpu_avail(node, nproc_required):
           tot_occ += float(occ)/100.0
     tot_occ = round(tot_occ)
   
-  except:
+  except (subprocess.SubprocessError, OSError, ValueError):
     pass
   
   # assume no CPUs 
@@ -51,7 +51,7 @@ def check_cpu_avail(node, nproc_required):
     sp_ret = subprocess.check_output(cmd, timeout=10.0, shell=True).decode("utf-8").split('\n')[0]
     if sp_ret != '':
       nproc = int(sp_ret) 
-  except:
+  except (subprocess.SubprocessError, OSError, ValueError):
     pass
 
   # limit the usage to 80%
@@ -72,19 +72,12 @@ def check_gpu_avail(node):
     sp_ret0 = subprocess.check_output(cmd, timeout=10.0, shell=True).decode("utf-8").split('\n')[:-1]
     cmd = f'ssh {node} "nvidia-smi" 2>/dev/null'
     sp_ret1 = subprocess.check_output(cmd, timeout=10.0, shell=True).decode("utf-8").split('\n')[:-1]
-  except:
+  except (subprocess.SubprocessError, OSError, ValueError):
     pass
 
   tot_cards = []
   occ_cards = []
 
-  twojobs = False
-  for r in sp_ret0:
-    if ("Product Name" in r):
-      if ('RTX 3070' in r) or ('RTX 3080' in r):
-        twojobs = True
-  
-  twojobs = False 
   ncard = 0
   for r in sp_ret0:
     if 'Attached GPU' in r:
@@ -92,8 +85,6 @@ def check_gpu_avail(node):
     
   for i in range(ncard):  
     tot_cards.append(str(i))
-    if twojobs:
-      tot_cards.append(str(i))
   
   # tinker9/dynamic9/bar9 is for Tinker9
   # dynamic is for openmm
@@ -140,12 +131,8 @@ def submit_jobs(jobcmds, jobtype):
     # to avoid submitting multiple jobs on one GPU card
     time.sleep(15.0)
      
-  # return the remainig jobcmds
-  tmp = [] 
-  for jobcmd in jobcmds:
-    if jobcmd != 'x':
-      tmp.append(jobcmd)
-  jobcmds = tmp
+  # return the remaining jobcmds
+  jobcmds = [cmd for cmd in jobcmds if cmd != 'x']
   return jobcmds
 
 if __name__ == '__main__':
