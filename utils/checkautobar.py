@@ -69,7 +69,7 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
       if os.path.isfile(arcpath):
         simsnapshot = count_arc_snapshots(arcpath)
         per = int(simsnapshot / phase_simsnapshot[phase] * 100)
-        if simsnapshot == phase_simsnapshot[phase]:
+        if simsnapshot >= phase_simsnapshot[phase]:
           if verbose > 0:
             print(GREEN + f"{fname:>20s}: " + u'\u2584' * (int(per / 2)) + f" [{per:>3d}%]" + ENDC)
           statuslist.append(True)
@@ -137,7 +137,7 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose):
   for enefile in gasenes + liquidenes + fep_gasenes + fep_liquidenes:
     if not os.path.isfile(enefile):
       if verbose > 0:
-        print(RED + " " + fname + f": free energy file (.ene) not found!" + ENDC)
+        print(RED + f" {os.path.basename(enefile)}: free energy file (.ene) not found!" + ENDC)
       statuslist.append(False)
     else:
       last_lines = _read_last_lines(enefile)

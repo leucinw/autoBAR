@@ -18,7 +18,7 @@ import ruamel.yaml as yaml
 from datetime import datetime
 from utils.checkautobar import (
     RED, ENDC, GREEN, YELLOW,
-    format_lambda_name, checkdynamic, checkbar
+    format_lambda_name, checkdynamic, checkbar, count_arc_snapshots, _read_last_lines
 )
 from utils.elescale import scaledownele
 
@@ -55,6 +55,51 @@ def _remove_phase_files(phase_dir, extensions):
   for ext in extensions:
     for fpath in glob.glob(os.path.join(phase_dir, f"*.{ext}")):
       os.remove(fpath)
+
+
+def _ene_complete(enepath):
+  """Return True if enepath exists and contains the BAR convergence line."""
+  if not os.path.isfile(enepath):
+    return False
+  return any("BAR Estimate of -T*dS" in line for line in _read_last_lines(enepath))
+
+
+def _bar_sh_steps_match(shpath, expected_start, expected_total):
+  """Return True if the BAR step-2 line in shpath uses the expected snapshot range.
+
+  The step-2 line written by autoBAR looks like:
+    $BAR? 2 barfile <start> <total> 1 <start> <total> 1 > enefile
+  so parts[1]=='2', parts[3]==start, parts[4]==total.
+  Returns False if the file is absent or cannot be parsed.
+  """
+  if not os.path.isfile(shpath):
+    return False
+  with open(shpath) as f:
+    for line in f:
+      parts = line.split()
+      if len(parts) >= 5 and parts[1] == '2':
+        try:
+          return int(parts[3]) == expected_start and int(parts[4]) == expected_total
+        except (ValueError, IndexError):
+          pass
+  return False
+
+
+def _remaining_steps(arcpath, total_steps, steps_per_snapshot):
+  """Return (remaining_steps, existing_snapshots) given an existing arc file.
+
+  If the arc is absent or unreadable, returns (total_steps, 0).
+  If the arc already meets or exceeds the target, returns (0, existing).
+  Tinker restarts from the .dyn checkpoint and appends to the arc, so
+  we only need to request the outstanding steps.
+  """
+  if not os.path.isfile(arcpath):
+    return total_steps, 0
+  existing = count_arc_snapshots(arcpath)
+  if not isinstance(existing, int):   # count_arc_snapshots returns str on error
+    return total_steps, 0
+  remaining = total_steps - existing * steps_per_snapshot
+  return max(0, remaining), existing
 
 
 def setup():
@@ -138,10 +183,15 @@ def setup():
 def dynamic():
   liquidshs = []
   gasshs = []
+  # steps_per_snapshot: how many MD steps produce one frame written to the arc
+  liquid_steps_per_snap = int(round(liquidwriteout / liquidtimestep * 1000))
+  gas_steps_per_snap    = int(round(gaswriteout    / gastimestep    * 1000))
+
   for phase in phases:
     phasedir = os.path.join(homedir, phase)
     for shfile in glob.glob(os.path.join(phasedir, "*.sh")):
-      os.remove(shfile)
+      if not os.path.basename(shfile).startswith('bar_'):
+        os.remove(shfile)
     os.chdir(phasedir)
     for elb, vlb in orderparams:
       fname = format_lambda_name(phase, elb, vlb)
@@ -151,29 +201,50 @@ def dynamic():
         dst_arc = os.path.join(phasedir, f"{fname}.arc")
         _force_symlink(src_arc, dst_arc)
         print(GREEN + f" ln -sf {fname0}.arc {fname}.arc " + ENDC)
+        continue
 
       xyzfile = fname + ".xyz"
       keyfile = fname + ".key"
       logfile = fname + ".log"
-      if os.path.isfile(logfile):
-        if verbose > 0:
-          print(YELLOW + f" [Warning] {logfile} exists in {phasedir} folder for {fname}" + ENDC)
+      arcpath = os.path.join(phasedir, fname + ".arc")
+
+      if phase == 'liquid':
+        remaining, existing_snaps = _remaining_steps(arcpath, liquidtotalstep, liquid_steps_per_snap)
+        total_snap = liquidtotalsnapshot
       else:
-        if phase == 'liquid':
-          liquidsh = fname + '.sh'
-          liquidshs.append(liquidsh)
-          with open(liquidsh, 'w') as f:
-            f.write(f'source {tinkerenv}\n')
-            if liquidensemble == "NPT":
-              f.write(f'{phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 4 {liquidT} {liquidP} > {logfile}\n')
-            elif liquidensemble == "NVT":
-              f.write(f'{phase_dynamic[phase]} {xyzfile} -key {keyfile} {liquidtotalstep} {liquidtimestep} {liquidwriteout} 2 {liquidT} > {logfile}\n')
-        elif phase == 'gas':
-          gassh = fname + '.sh'
-          gasshs.append(gassh)
-          with open(gassh, 'w') as f:
-            f.write(f'source {tinkerenv}\n')
-            f.write(f"{phase_dynamic[phase]} {xyzfile} -key {keyfile} {gastotalstep} {gastimestep} {gaswriteout} 2 {gastemperature} > {logfile}\n")
+        remaining, existing_snaps = _remaining_steps(arcpath, gastotalstep, gas_steps_per_snap)
+        total_snap = gastotalsnapshot
+
+      if remaining <= 0:
+        if verbose > 0:
+          print(GREEN + f" [Done]  {fname}: arc already has {total_snap} snapshots, skipping" + ENDC)
+        continue
+
+      dynpath = os.path.join(phasedir, fname + ".dyn")
+      is_continuation = existing_snaps > 0 and os.path.isfile(dynpath)
+      log_redirect = ">>" if is_continuation else ">"
+      if is_continuation and verbose > 0:
+        print(YELLOW + f" [Resume] {fname}: {existing_snaps}/{total_snap} snapshots done,"
+              f" running {remaining} more steps" + ENDC)
+      elif existing_snaps > 0 and not os.path.isfile(dynpath) and verbose > 0:
+        print(YELLOW + f" [Restart] {fname}: arc has {existing_snaps} snapshots but .dyn missing,"
+              f" restarting from scratch" + ENDC)
+
+      if phase == 'liquid':
+        liquidsh = fname + '.sh'
+        liquidshs.append(liquidsh)
+        with open(liquidsh, 'w') as f:
+          f.write(f'source {tinkerenv}\n')
+          if liquidensemble == "NPT":
+            f.write(f'{phase_dynamic[phase]} {xyzfile} -key {keyfile} {remaining} {liquidtimestep} {liquidwriteout} 4 {liquidT} {liquidP} {log_redirect} {logfile}\n')
+          elif liquidensemble == "NVT":
+            f.write(f'{phase_dynamic[phase]} {xyzfile} -key {keyfile} {remaining} {liquidtimestep} {liquidwriteout} 2 {liquidT} {log_redirect} {logfile}\n')
+      elif phase == 'gas':
+        gassh = fname + '.sh'
+        gasshs.append(gassh)
+        with open(gassh, 'w') as f:
+          f.write(f'source {tinkerenv}\n')
+          f.write(f"{phase_dynamic[phase]} {xyzfile} -key {keyfile} {remaining} {gastimestep} {gaswriteout} 2 {gastemperature} {log_redirect} {logfile}\n")
 
   # submit jobs to clusters
   for phase in phases:
@@ -259,7 +330,18 @@ def bar():
         enefile = fname0 + ".ene"
         startsnapshot = int(liquidtotalsnapshot / 5.0) + 1
 
-        if not os.path.isfile(os.path.join(barfiledir, barfile)):
+        barpath = os.path.join(barfiledir, barfile)
+        enepath = os.path.join(barfiledir, enefile)
+        shpath  = os.path.join(barfiledir, liquidbarname)
+        if os.path.isfile(barpath) and os.path.isfile(shpath) and not _bar_sh_steps_match(shpath, startsnapshot, liquidtotalsnapshot):
+          print(YELLOW + f" [Regen] {barfile}: snapshot range changed, removing stale .bar/.ene" + ENDC)
+          for p in [barpath, enepath]:
+            if os.path.isfile(p): os.remove(p)
+
+        bar_done = os.path.isfile(barpath) and _ene_complete(enepath)
+        if not bar_done:
+          if os.path.isfile(barpath) and verbose > 0:
+            print(YELLOW + f" [Rerun] {barfile}: .bar exists but .ene missing/incomplete, resubmitting" + ENDC)
           with open(liquidbarname, 'w') as f:
             f.write(f"source {tinkerenv}\n")
             f.write(f"{liquidbarexe} 1 {arcfile0} {liquidT} {arcfile1} {liquidT} N > {outfile} && \n")
@@ -279,7 +361,18 @@ def bar():
         startsnapshot = int(gastotalsnapshot / 5.0) + 1
 
         if gastotaltime != 0:
-          if not os.path.isfile(os.path.join(barfiledir, barfile)):
+          barpath = os.path.join(barfiledir, barfile)
+          enepath = os.path.join(barfiledir, enefile)
+          shpath  = os.path.join(barfiledir, gasbarname)
+          if os.path.isfile(barpath) and os.path.isfile(shpath) and not _bar_sh_steps_match(shpath, startsnapshot, gastotalsnapshot):
+            print(YELLOW + f" [Regen] {barfile}: snapshot range changed, removing stale .bar/.ene" + ENDC)
+            for p in [barpath, enepath]:
+              if os.path.isfile(p): os.remove(p)
+
+          bar_done = os.path.isfile(barpath) and _ene_complete(enepath)
+          if not bar_done:
+            if os.path.isfile(barpath) and verbose > 0:
+              print(YELLOW + f" [Rerun] {barfile}: .bar exists but .ene missing/incomplete, resubmitting" + ENDC)
             with open(gasbarname, 'w') as f:
               f.write(f"source {tinkerenv}\n")
               f.write(f"{gasbarexe} 1 {arcfile1} {gastemperature} {arcfile0} {gastemperature} N > {outfile} && \n")
