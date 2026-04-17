@@ -14,7 +14,7 @@ import glob as globmod
 import os
 import shutil
 import subprocess
-import time
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -25,8 +25,10 @@ from scipy.optimize import least_squares
 # Populated once in main() and read by model_func / write_prm / jacobian_fd.
 _config = {}
 
-# Maximum time (seconds) to wait for result.txt before raising an error
-_MAX_WAIT_SECONDS = 86400  # 24 hours
+# Smallest positive lower bound we allow for any parameter — prevents the
+# optimizer from driving vdw-style quantities (sigma, epsilon) through zero
+# into unphysical territory.
+_MIN_LOWER_BOUND = 1e-4
 
 
 def _remove_matching(pattern):
@@ -41,16 +43,28 @@ def _remove_matching(pattern):
             pass
 
 
-def _wait_for_result(poll_interval=60.0, timeout=_MAX_WAIT_SECONDS):
-    """Block until ``result.txt`` appears, raising on timeout."""
-    elapsed = 0.0
-    while not os.path.isfile('result.txt'):
-        if elapsed >= timeout:
-            raise TimeoutError(
-                f"result.txt not found after waiting {timeout} seconds"
-            )
-        time.sleep(poll_interval)
-        elapsed += poll_interval
+def _run_autobar():
+    """Invoke ``autoBAR.py auto`` under the current interpreter.
+
+    autoBAR is blocking: by the time it returns, ``result.txt`` either
+    exists (success) or was never written (failure). Raise loudly on
+    either condition instead of polling for hours.
+    """
+    autobar_path = _config["autobar_path"]
+    rc = subprocess.run([sys.executable, autobar_path, 'auto']).returncode
+    if rc != 0:
+        raise RuntimeError(
+            f"autoBAR.py exited with code {rc}; aborting optimization"
+        )
+    if not os.path.isfile('result.txt'):
+        raise RuntimeError(
+            "autoBAR.py returned 0 but result.txt was not produced"
+        )
+
+
+def _restore_param_file():
+    """Reset the in-tree parameter file to its pristine pre-opt snapshot."""
+    shutil.copy(_config["param_file_snapshot"], _config["param_file"])
 
 
 def model_func(params):
@@ -59,12 +73,13 @@ def model_func(params):
     """
     param_file = _config["param_file"]
     initial_params = _config["initial_params"]
-    autobar_path = _config["autobar_path"]
     expt_hfe = _config["expt_hfe"]
 
     Path('result.txt').unlink(missing_ok=True)
 
     if np.array_equal(params, initial_params):
+        # Reference point: rebuild the in-tree prm from the pristine snapshot
+        # plus one opt line. Never append to an already-modified file.
         write_prm(params, param_file)
     else:
         _remove_matching(f'*/{param_file}_01')
@@ -73,16 +88,14 @@ def model_func(params):
         _remove_matching('*/FEP_01')
         write_prm(params, param_file + "_01")
 
-    subprocess.run(['python', autobar_path, 'auto'], check=False)
-
-    _wait_for_result()
+    _run_autobar()
 
     # read result.txt file
     with open('result.txt') as f:
         lines = f.readlines()
 
-    fe0 = 0.0
-    fe1 = 0.0
+    fe0 = None
+    fe1 = None
     for line in lines:
         if 'SUM OF ' in line:
             fe0 = float(line.split()[-2])
@@ -91,21 +104,34 @@ def model_func(params):
 
     print(f'Current params: {params}')
     if np.array_equal(params, initial_params):
+        if fe0 is None:
+            raise RuntimeError("result.txt missing 'SUM OF ' line for reference point")
         print(f'Current HFE: {fe0}')
         return np.atleast_1d([fe0 - expt_hfe])
     else:
+        if fe1 is None:
+            raise RuntimeError("result.txt missing 'FEP_001' line for trial point")
         print(f'Current HFE: {fe1}')
         return np.atleast_1d([fe1 - expt_hfe])
 
 
 def write_prm(params, fname):
+    """Write the current opt line into *fname*.
+
+    The in-tree ``param_file`` is rebuilt from the pristine snapshot before
+    every write, so optimizer iterations never accumulate duplicate opt
+    lines. Sidecar files (``param_file_NN``) are also derived from the
+    snapshot, not from the (possibly modified) in-tree file.
+    """
     param_file = _config["param_file"]
     opt_term_idx = _config["opt_term_idx"]
+    snapshot = _config["param_file_snapshot"]
 
-    if not os.path.isfile(param_file):
-        raise FileNotFoundError(f"Parameter file not found: {param_file}")
-    if param_file != fname:
-        shutil.copy(param_file, fname)
+    if not os.path.isfile(snapshot):
+        raise FileNotFoundError(f"Parameter snapshot not found: {snapshot}")
+
+    # Rebuild the target file from the pristine snapshot every time.
+    shutil.copy(snapshot, fname)
     with open(fname, 'a') as f:
         line = (opt_term_idx.replace('-', '   ')
                 + '  ' + '  '.join(str(p) for p in params) + '\n')
@@ -120,7 +146,6 @@ def jacobian_fd(params):
     """
     param_file = _config["param_file"]
     initial_params = _config["initial_params"]
-    autobar_path = _config["autobar_path"]
     diff_step = _config["diff_step"]
 
     n_params = len(params)
@@ -132,9 +157,12 @@ def jacobian_fd(params):
 
     Path('result.txt').unlink(missing_ok=True)
 
-    perturb_idx = 1
-    if not np.array_equal(params, initial_params):
-        perturb_idx = 2
+    is_initial = np.array_equal(params, initial_params)
+    perturb_idx = 1 if is_initial else 2
+
+    # Perturbation windows we create this call — used below to sanity-check
+    # the FEP row count in result.txt.
+    created_indices = []
 
     for j in range(n_params):
 
@@ -153,9 +181,11 @@ def jacobian_fd(params):
         _remove_matching(f'*/*e{lambda_str}*')
         params_plus += dp
         write_prm(params_plus, param_file_p)
+        created_indices.append(perturb_idx)
         perturb_idx += 1
 
         # minus finite difference
+        lambda_str = f"{100 + perturb_idx * 10}"
         param_file_p = param_file + f'_{perturb_idx:02d}'
         _remove_matching(f'*/{param_file_p}')
         Path(param_file_p).unlink(missing_ok=True)
@@ -163,11 +193,10 @@ def jacobian_fd(params):
         _remove_matching(f'*/*e{lambda_str}*')
         params_minus -= dp
         write_prm(params_minus, param_file_p)
+        created_indices.append(perturb_idx)
         perturb_idx += 1
 
-    subprocess.run(['python', autobar_path, 'auto'], check=False)
-
-    _wait_for_result()
+    _run_autobar()
 
     # read result.txt file
     with open('result.txt') as f:
@@ -179,8 +208,17 @@ def jacobian_fd(params):
             fep = float(line.split()[-1])
             feps.append(fep)
 
+    # Non-initial calls reuse the trial point (prm_01 → FEP_01) produced by
+    # the preceding model_func call, so result.txt has one extra FEP row.
+    expected = 2 * n_params if is_initial else 2 * n_params + 1
+    if len(feps) != expected:
+        raise RuntimeError(
+            f"result.txt has {len(feps)} FEP rows, expected {expected} "
+            f"(is_initial={is_initial}, created perturb_idx={created_indices})"
+        )
+
     for j in range(n_params):
-        if np.array_equal(params, initial_params):
+        if is_initial:
             r_plus = feps[j * 2]
             r_minus = feps[j * 2 + 1]
         else:
@@ -210,13 +248,49 @@ def main():
     s = opt_params.split()
     opt_term_idx = s[0]
     initial_params = np.atleast_1d([float(x) for x in s[1:]])
+    n_params = len(initial_params)
 
-    # x*diff_step
+    # form the upper and lower bound
+    range_values = params_range.split()
+    if len(range_values) != n_params:
+        sys.exit(
+            f"[Error] params_range has {len(range_values)} value(s) but "
+            f"opt_params has {n_params} parameter(s); they must match."
+        )
+    range_values = np.array([float(v) for v in range_values])
+    lb = initial_params - range_values
+    ub = initial_params + range_values
+
+    # Clamp non-positive lower bounds — letting vdw-style parameters
+    # (sigma, epsilon) go through zero sends Tinker into unphysical regimes.
+    bad = lb <= 0
+    if bad.any():
+        print(
+            f"[Warning] params_range would drive lb <= 0 for indices "
+            f"{np.where(bad)[0].tolist()}; clamping to {_MIN_LOWER_BOUND}."
+        )
+        lb = np.where(bad, _MIN_LOWER_BOUND, lb)
+    bounds = (lb, ub)
+
+    # Snapshot the user's pristine parameter file so write_prm can rebuild
+    # the in-tree copy on every call without accumulating opt lines.
+    snapshot = param_file + ".orig"
+    if not os.path.isfile(snapshot):
+        if not os.path.isfile(param_file):
+            sys.exit(f"[Error] parameter file not found: {param_file}")
+        shutil.copy(param_file, snapshot)
+    # An existing snapshot is authoritative — treat it as the base going
+    # forward (the in-tree file may already carry an opt line from a
+    # previous run).
+
+    # x*diff_step — only used inside jacobian_fd; NB least_squares ignores
+    # its own diff_step when a callable `jac` is supplied.
     diff_step = 0.0001
 
     # Populate the module-level config dict (replaces scattered globals)
     _config.update({
         "param_file": param_file,
+        "param_file_snapshot": snapshot,
         "expt_hfe": expt_hfe,
         "opt_term_idx": opt_term_idx,
         "initial_params": initial_params,
@@ -224,40 +298,33 @@ def main():
         "diff_step": diff_step,
     })
 
-    # form the upper and lower bound
-    lb = np.zeros(len(initial_params))
-    ub = np.zeros(len(initial_params))
-    range_values = params_range.split()
-
-    for i in range(len(initial_params)):
-        lb[i] = initial_params[i] - float(range_values[i])
-        ub[i] = initial_params[i] + float(range_values[i])
-
-    bounds = (lb, ub)
-
-    # xs = x/x_scale
-    x_scale = np.ones(len(initial_params))
-
     print("\n=== Optimization Settings ===")
     print('bounds', bounds)
     print('initial_params', initial_params)
     print('diff_step', diff_step)
-    print('x_scale', x_scale)
 
-    # clean up the FEP_01...09 files when starting
-    _remove_matching(f'*/{param_file}_0?')
-    _remove_matching(f'{param_file}_0?')
-    for i in range(1, 10):
-        _remove_matching(f'*/*e1{i}0*')
-        _remove_matching(f'*/FEP_0{i}')
+    # Cleanup covers every perturb_idx the optimizer could ever create this
+    # run: the model point (idx=1 on initial, idx=1 reused on trial) plus
+    # 2*n_params FD windows, so 2*n_params+1 is always a safe upper bound.
+    max_idx = 2 * n_params + 1
+    _remove_matching(f'*/{param_file}_??')
+    _remove_matching(f'{param_file}_??')
+    for i in range(1, max_idx + 1):
+        lambda_str = f"{100 + i * 10}"
+        _remove_matching(f'*/*e{lambda_str}*')
+        _remove_matching(f'*/FEP_{i:02d}')
 
-    # Run optimization
+    # Ensure the in-tree prm starts from the pristine snapshot every run,
+    # even if a previous crash left it mutated.
+    _restore_param_file()
+
+    # Run optimization. Leave x_scale at scipy's default so the trust
+    # region scales with the Jacobian instead of treating sigma~3.8 and
+    # epsilon~0.05 as numerically equivalent.
     result = least_squares(
         fun=model_func,
         x0=initial_params,
         jac=jacobian_fd,
-        diff_step=diff_step,
-        x_scale=x_scale,
         loss='soft_l1',
         method='trf',
         verbose=2,
