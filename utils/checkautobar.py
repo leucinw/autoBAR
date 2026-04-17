@@ -78,7 +78,10 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
             print(YELLOW + f"{fname:>20s}: " + u'\u2584' * (int(per / 2)) + f" [{per:>3d}%]" + ENDC)
           statuslist.append(False)
       else:
-        if gastotalsnapshot == 0:
+        # Only treat a missing arc as "OK" for the gas phase when gas is
+        # disabled (gas_md_total_time = 0). A missing liquid arc must
+        # always fail, regardless of the gas setting.
+        if phase == 'gas' and gastotalsnapshot == 0:
           statuslist.append(True)
         else:
           if verbose > 0:

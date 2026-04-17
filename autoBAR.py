@@ -119,7 +119,9 @@ def setup():
         f.write(f'{phase_minimize[phase]} {xyzfile} -key gas.key 0.1 > gas-min.log \n')
         f.write(f'wait\nmv {phase_xyz[phase]}_2 {phase_xyz[phase]}\n')
       if not os.path.isfile("gas-min.log"):
-        subprocess.run(['sh', gasminsh], check=False)
+        rc = subprocess.run(['sh', gasminsh]).returncode
+        if rc != 0 or not os.path.isfile(phase_xyz[phase]):
+          sys.exit(RED + f"[Error] gas minimization failed (rc={rc}); see gas-min.log" + ENDC)
     elif phase == 'liquid':
       liquidminsh = 'liquid-min.sh'
       with open(liquidminsh, 'w') as f:
@@ -127,7 +129,9 @@ def setup():
         f.write(f'{phase_minimize[phase]} {xyzfile} -key liquid.key 0.2 > liquid-min.log\n')
         f.write(f'wait\nmv {phase_xyz[phase]}_2 {phase_xyz[phase]}\n')
       if not os.path.isfile("liquid-min.log"):
-        subprocess.run(['sh', liquidminsh], check=False)
+        rc = subprocess.run(['sh', liquidminsh]).returncode
+        if rc != 0 or not os.path.isfile(phase_xyz[phase]):
+          sys.exit(RED + f"[Error] liquid minimization failed (rc={rc}); see liquid-min.log" + ENDC)
 
     _remove_phase_files(phase, ['xyz', 'key'])
 
@@ -254,12 +258,16 @@ def dynamic():
       nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
       shstr = f"python {submitexe} -x {' '.join(gasshs)} -t CPU{nodes_arg} -n 4 -p {phasedir}"
       print(GREEN + ' ' + shstr + ENDC)
-      subprocess.run(shstr, shell=True, check=False)
+      rc = subprocess.run(shstr, shell=True).returncode
+      if rc != 0:
+        print(RED + f"[Warning] gas submitTinker exited with code {rc}; some jobs may not have been dispatched" + ENDC)
     if phase == 'liquid' and liquidshs:
       nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
       shstr = f"python {submitexe} -x {' '.join(liquidshs)} -t GPU{nodes_arg} -p {phasedir}"
       print(GREEN + ' ' + shstr + ENDC)
-      subprocess.run(shstr, shell=True, check=False)
+      rc = subprocess.run(shstr, shell=True).returncode
+      if rc != 0:
+        print(RED + f"[Warning] liquid submitTinker exited with code {rc}; some jobs may not have been dispatched" + ENDC)
   return
 
 
@@ -392,11 +400,15 @@ def bar():
     if phase == 'gas' and gasshs:
       nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
       cmd = f"python {submitexe} -x {' '.join([x[0] for x in gasshs])} -t CPU -n 4 -p {' '.join([x[1] for x in gasshs])}{nodes_arg}"
-      subprocess.run(cmd, shell=True, check=False)
+      rc = subprocess.run(cmd, shell=True).returncode
+      if rc != 0:
+        print(RED + f"[Warning] gas BAR submitTinker exited with code {rc}; some jobs may not have been dispatched" + ENDC)
     if phase == 'liquid' and liquidshs:
       nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
       cmd = f"python {submitexe} -x {' '.join([x[0] for x in liquidshs])} -t GPU -p {' '.join([x[1] for x in liquidshs])}{nodes_arg}"
-      subprocess.run(cmd, shell=True, check=False)
+      rc = subprocess.run(cmd, shell=True).returncode
+      if rc != 0:
+        print(RED + f"[Warning] liquid BAR submitTinker exited with code {rc}; some jobs may not have been dispatched" + ENDC)
   return
 
 
@@ -469,8 +481,11 @@ def _load_settings():
     sys.exit(RED + "Please provide 'settings.yaml' file; " + ENDC +
              GREEN + f"An example is here for you {os.path.join(rootdir, 'dat', 'settings.yaml')}" + ENDC)
 
+  # Use the object-style API so this works on ruamel.yaml >=0.18,
+  # which removed the module-level yaml.load(..., Loader=...) shim.
+  yaml_parser = yaml.YAML(typ='safe', pure=True)
   with open(settings_path) as f:
-    settings = yaml.load(f, Loader=yaml.Loader)
+    settings = yaml_parser.load(f)
   return rootdir, homedir, settings
 
 
@@ -571,6 +586,12 @@ if __name__ == "__main__":
   liquidensemble = FEsimsettings["liquid_md_ensemble"].upper()
   liquidtotalstep = int((1000000.0 * liquidtotaltime) / liquidtimestep)
   liquidtotalsnapshot = int(1000 * liquidtotaltime / liquidwriteout)
+  # BAR skips the first 20 % as equilibration (startsnapshot = total/5 + 1);
+  # need at least 6 snapshots so the sampled window is non-empty.
+  if liquidtotalsnapshot < 6:
+    sys.exit(RED + f"[Error] liquid_md_total_time ({liquidtotaltime} ns) / "
+             f"liquid_md_write_freq ({liquidwriteout} ps) yields only "
+             f"{liquidtotalsnapshot} snapshots; need at least 6 for BAR" + ENDC)
   os.makedirs('liquid', exist_ok=True)
 
   # gas phase specific settings
@@ -596,6 +617,12 @@ if __name__ == "__main__":
   gaswriteout = FEsimsettings["gas_md_write_freq"]
   gastotalstep = int((1000000.0 * gastotaltime) / gastimestep)
   gastotalsnapshot = int(1000 * gastotaltime / gaswriteout)
+  # Gas phase is optional (gastotaltime == 0 disables it), but if enabled
+  # it must also yield enough snapshots for BAR to have a non-empty window.
+  if gastotaltime > 0 and gastotalsnapshot < 6:
+    sys.exit(RED + f"[Error] gas_md_total_time ({gastotaltime} ns) / "
+             f"gas_md_write_freq ({gaswriteout} ps) yields only "
+             f"{gastotalsnapshot} snapshots; need at least 6 for BAR" + ENDC)
   phase_xyz = {'liquid': box, 'gas': lig}
   phase_key = {'liquid': liquidkeylines, 'gas': gaskeylines}
   phase_dynamic = {'liquid': liquidmdexe, 'gas': gasmdexe}

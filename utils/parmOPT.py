@@ -192,16 +192,19 @@ def jacobian_fd(params):
 
 
 def main():
+    # Use the object-style API so this works on ruamel.yaml >=0.18,
+    # which removed the module-level yaml.load(..., Loader=...) shim.
+    yaml_parser = yaml.YAML(typ='safe', pure=True)
     with open('settings.yaml') as f:
-        settings = yaml.load(f, Loader=yaml.Loader)
+        settings = yaml_parser.load(f)
 
     param_file = settings["parameters"]
     expt_hfe = float(settings["expt_hfe"])
     opt_params = settings["opt_params"]
     params_range = settings["params_range"]
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    autobar_path = os.path.join(script_dir.split('utils')[0], 'autoBAR.py')
+    # parmOPT.py lives in <repo>/utils/, so autoBAR.py is one level up.
+    autobar_path = str(Path(__file__).resolve().parent.parent / 'autoBAR.py')
 
     # opt_params format: "vdwpair-401-402 3.8 0.05"
     s = opt_params.split()

@@ -157,12 +157,15 @@ def get_available_gpus(node):
 
     all_cards = [str(i) for i in range(num_gpus)]
 
-    # Find occupied cards by scanning for known GPU-using processes
+    # Find occupied cards by scanning for known GPU-using processes.
+    # nvidia-smi's per-process table puts the GPU index at parts[1]; newer
+    # driver versions occasionally emit "N/A" / "MiB" there instead, so
+    # require the token to be a plain integer before trusting it.
     occupied = []
     for line in summary_lines:
         if any(kw in line for kw in GPU_OCCUPANT_KEYWORDS):
             parts = line.split()
-            if len(parts) >= 2:
+            if len(parts) >= 2 and parts[1].isdigit():
                 occupied.append(parts[1])
 
     # Remove one slot per occupant (handles multi-GPU nodes correctly)
@@ -255,8 +258,11 @@ def submit_round(pending_cmds, job_type, gpu_nodes, cpu_nodes, nproc_required):
                 if not remaining:
                     break
                 cmd = remaining[0]
-                # PySCF / Python jobs manage CUDA internally
-                if ".py" in cmd:
+                # PySCF / Python jobs manage CUDA internally. Check any
+                # whitespace-separated token for a .py suffix so a working
+                # directory containing ".py" cannot trigger a false match.
+                is_py_job = any(tok.endswith(".py") for tok in cmd.split())
+                if is_py_job:
                     remote_cmd = cmd
                 else:
                     remote_cmd = (

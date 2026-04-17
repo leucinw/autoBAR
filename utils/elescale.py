@@ -9,11 +9,22 @@ import numpy as np
 
 
 def _matches_keyword(tokens, keyword, atomtypes, num_type_fields=1):
-  """Check if tokens represent a parameter line matching the keyword and atom types."""
+  """Check if tokens represent a parameter line matching the keyword and atom types.
+
+  Atom-type tokens may be signed (Tinker multipole reference-frame atoms use a
+  leading '-' to flip axis orientation); membership in ``atomtypes`` is tested
+  against the absolute value.
+  """
   if tokens[0].lower() != keyword:
     return False
   type_fields = tokens[1:1 + num_type_fields]
-  return all(t.isdigit() and t in atomtypes for t in type_fields)
+  if len(type_fields) < num_type_fields:
+    return False
+  for t in type_fields:
+    abs_t = t.lstrip('-')
+    if not abs_t.isdigit() or abs_t not in atomtypes:
+      return False
+  return True
 
 
 def _scale_single_value_param(tokens, elb, prefix_count, trailing=True):
@@ -49,16 +60,19 @@ def scaledownele(xyz, prm, elb):
     # for AMOEBA/AMOEBA+
     # multipole (spans 5 lines: monopole, dipole, quadrupole)
     if keyword == 'multipole' and _matches_keyword(tokens, 'multipole', atomtypes):
-      prmstrs.append('  '.join(tokens[:-1]) + "%10.5f" % (float(tokens[-1]) * elb))
-      # dipole
+      # Need 4 continuation lines (dipole + 3 quadrupole rows) after the header
+      if i + 4 >= len(prmlines):
+        continue
       dp = prmlines[i + 1].split()
-      prmstrs.append('        ' + _scale_values(dp[:3], elb))
-      # quadrupole
       q1 = prmlines[i + 2].split()
-      prmstrs.append('        ' + _scale_values(q1[:1], elb))
       q2 = prmlines[i + 3].split()
-      prmstrs.append('        ' + _scale_values(q2[:2], elb))
       q3 = prmlines[i + 4].split()
+      if len(dp) < 3 or len(q1) < 1 or len(q2) < 2 or len(q3) < 3:
+        continue
+      prmstrs.append('  '.join(tokens[:-1]) + "%10.5f" % (float(tokens[-1]) * elb))
+      prmstrs.append('        ' + _scale_values(dp[:3], elb))
+      prmstrs.append('        ' + _scale_values(q1[:1], elb))
+      prmstrs.append('        ' + _scale_values(q2[:2], elb))
       prmstrs.append('        ' + _scale_values(q3[:3], elb))
 
     # polarize, charge transfer, charge penetration (same pattern: scale 3rd field)
