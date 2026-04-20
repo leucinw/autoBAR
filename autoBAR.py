@@ -225,7 +225,12 @@ def dynamic():
         continue
 
       dynpath = os.path.join(phasedir, fname + ".dyn")
+      errpath = os.path.join(phasedir, fname + ".err")
       is_continuation = existing_snaps > 0 and os.path.isfile(dynpath)
+      if is_continuation and os.path.isfile(errpath):
+        print(RED + f" [Error]  {fname}: .err file detected, skipping resume."
+              f" Please check {errpath} before resubmitting." + ENDC)
+        continue
       log_redirect = ">>" if is_continuation else ">"
       if is_continuation and verbose > 0:
         print(YELLOW + f" [Resume] {fname}: {existing_snaps}/{total_snap} snapshots done,"
