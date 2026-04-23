@@ -20,6 +20,7 @@ from utils.checkautobar import (
     RED, ENDC, GREEN, YELLOW,
     format_lambda_name, checkdynamic, checkbar, count_arc_snapshots, _read_last_lines,
     _bar_sh_steps_match,
+    _bar_file_snapshot_count,
 )
 from utils.elescale import scaledownele
 
@@ -332,6 +333,11 @@ def bar():
           for p in [barpath, enepath]:
             if os.path.isfile(p): os.remove(p)
 
+        if os.path.isfile(barpath) and _bar_file_snapshot_count(barpath) != liquidtotalsnapshot:
+          print(YELLOW + f" [Regen] {barfile}: .bar is from a different run ({_bar_file_snapshot_count(barpath)} vs {liquidtotalsnapshot} snapshots), removing stale .bar/.ene" + ENDC)
+          for p in [barpath, enepath]:
+            if os.path.isfile(p): os.remove(p)
+
         bar_done = os.path.isfile(barpath) and _ene_complete(enepath) and os.path.isfile(shpath)
         if not bar_done:
           if os.path.isfile(barpath) and verbose > 0:
@@ -360,6 +366,11 @@ def bar():
           shpath  = os.path.join(barfiledir, gasbarname)
           if os.path.isfile(barpath) and os.path.isfile(shpath) and not _bar_sh_steps_match(shpath, startsnapshot, gastotalsnapshot):
             print(YELLOW + f" [Regen] {barfile}: snapshot range changed, removing stale .bar/.ene" + ENDC)
+            for p in [barpath, enepath]:
+              if os.path.isfile(p): os.remove(p)
+
+          if os.path.isfile(barpath) and _bar_file_snapshot_count(barpath) != gastotalsnapshot:
+            print(YELLOW + f" [Regen] {barfile}: .bar is from a different run ({_bar_file_snapshot_count(barpath)} vs {gastotalsnapshot} snapshots), removing stale .bar/.ene" + ENDC)
             for p in [barpath, enepath]:
               if os.path.isfile(p): os.remove(p)
 

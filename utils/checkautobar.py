@@ -30,6 +30,15 @@ def _append_unique_ene(enedir, enefile, ene_list, perturb_list, perturb_pair):
         ene_list.append(path)
         perturb_list.append(perturb_pair)
 
+def _bar_file_snapshot_count(barpath):
+    """Return the snapshot count from the first line of a .bar file, or 0 on failure."""
+    try:
+        with open(barpath) as f:
+            parts = f.readline().split()
+            return int(parts[0]) if parts else 0
+    except (IOError, ValueError):
+        return 0
+
 def _bar_sh_steps_match(shpath, expected_start, expected_total):
     """Return True if the BAR step-2 line in shpath uses the expected snapshot range.
 
