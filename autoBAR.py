@@ -18,7 +18,8 @@ import ruamel.yaml as yaml
 from datetime import datetime
 from utils.checkautobar import (
     RED, ENDC, GREEN, YELLOW,
-    format_lambda_name, checkdynamic, checkbar, count_arc_snapshots, _read_last_lines
+    format_lambda_name, checkdynamic, checkbar, count_arc_snapshots, _read_last_lines,
+    _bar_sh_steps_match,
 )
 from utils.elescale import scaledownele
 
@@ -63,26 +64,6 @@ def _ene_complete(enepath):
     return False
   return any("BAR Estimate of -T*dS" in line for line in _read_last_lines(enepath))
 
-
-def _bar_sh_steps_match(shpath, expected_start, expected_total):
-  """Return True if the BAR step-2 line in shpath uses the expected snapshot range.
-
-  The step-2 line written by autoBAR looks like:
-    $BAR? 2 barfile <start> <total> 1 <start> <total> 1 > enefile
-  so parts[1]=='2', parts[3]==start, parts[4]==total.
-  Returns False if the file is absent or cannot be parsed.
-  """
-  if not os.path.isfile(shpath):
-    return False
-  with open(shpath) as f:
-    for line in f:
-      parts = line.split()
-      if len(parts) >= 5 and parts[1] == '2':
-        try:
-          return int(parts[3]) == expected_start and int(parts[4]) == expected_total
-        except (ValueError, IndexError):
-          pass
-  return False
 
 
 def _remaining_steps(arcpath, total_steps, steps_per_snapshot):
@@ -419,7 +400,7 @@ def bar():
 
 def result():
   print(YELLOW + " Checking the completeness of the BAR analysis ..." + ENDC)
-  proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes, fep_gasperturbsteps, fep_gasenes, fep_liquidperturbsteps, fep_liquidenes = checkbar(phases, orderparams, homedir, ignoregas, verbose)
+  proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes, fep_gasperturbsteps, fep_gasenes, fep_liquidperturbsteps, fep_liquidenes = checkbar(phases, orderparams, homedir, ignoregas, verbose, liquidtotalsnapshot, gastotalsnapshot)
 
   if not proceed:
     return
@@ -678,6 +659,6 @@ if __name__ == "__main__":
     bar_good = False
     while not bar_good:
       time.sleep(30.0)
-      bar_good, *_ = checkbar(phases, orderparams, homedir, ignoregas, verbose)
+      bar_good, *_ = checkbar(phases, orderparams, homedir, ignoregas, verbose, liquidtotalsnapshot, gastotalsnapshot)
 
     actions['result']()

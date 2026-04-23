@@ -30,6 +30,26 @@ def _append_unique_ene(enedir, enefile, ene_list, perturb_list, perturb_pair):
         ene_list.append(path)
         perturb_list.append(perturb_pair)
 
+def _bar_sh_steps_match(shpath, expected_start, expected_total):
+    """Return True if the BAR step-2 line in shpath uses the expected snapshot range.
+
+    The step-2 line written by autoBAR looks like:
+      $BAR? 2 barfile <start> <total> 1 <start> <total> 1 > enefile
+    so parts[1]=='2', parts[3]==start, parts[4]==total.
+    Returns False if the file is absent or cannot be parsed.
+    """
+    if not os.path.isfile(shpath):
+        return False
+    with open(shpath) as f:
+        for line in f:
+            parts = line.split()
+            if len(parts) >= 5 and parts[1] == '2':
+                try:
+                    return int(parts[3]) == expected_start and int(parts[4]) == expected_total
+                except (ValueError, IndexError):
+                    pass
+    return False
+
 def count_arc_snapshots(file_path):
     if not os.path.exists(file_path):
         return "File not found."
@@ -90,7 +110,7 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
   completed = all(statuslist)
   return completed, phase_simsnapshot
 
-def checkbar(phases, orderparams, homedir, ignoregas, verbose):
+def checkbar(phases, orderparams, homedir, ignoregas, verbose, liquidtotalsnapshot=0, gastotalsnapshot=0):
   statuslist = []
   gasenes = []
   liquidenes = []
@@ -130,7 +150,8 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose):
       if phase == 'gas':
         enefile = fname1 + ".ene"
         enepath = os.path.join(enedir, enefile)
-        ene_to_sh[enepath] = os.path.join(enedir, f"bar_e{e1}-v{v1}_e{e0}-v{v0}.sh")
+        _gas_start = int(gastotalsnapshot / 5.0) + 1
+        ene_to_sh[enepath] = (os.path.join(enedir, f"bar_e{e1}-v{v1}_e{e0}-v{v0}.sh"), _gas_start, gastotalsnapshot)
         if is_fep:
           _append_unique_ene(enedir, enefile, fep_gasenes, fep_gasperturbsteps, [fname1, fname0])
         else:
@@ -139,7 +160,8 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose):
       if phase == 'liquid':
         enefile = fname0 + ".ene"
         enepath = os.path.join(enedir, enefile)
-        ene_to_sh[enepath] = os.path.join(enedir, f"bar_e{e0}-v{v0}_e{e1}-v{v1}.sh")
+        _liq_start = int(liquidtotalsnapshot / 5.0) + 1
+        ene_to_sh[enepath] = (os.path.join(enedir, f"bar_e{e0}-v{v0}_e{e1}-v{v1}.sh"), _liq_start, liquidtotalsnapshot)
         if is_fep:
           _append_unique_ene(enedir, enefile, fep_liquidenes, fep_liquidperturbsteps, [fname0, fname1])
         else:
@@ -150,10 +172,20 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose):
       if verbose > 0:
         print(RED + f" {os.path.basename(enefile)}: free energy file (.ene) not found!" + ENDC)
       statuslist.append(False)
-    elif ene_to_sh.get(enefile) and not os.path.isfile(ene_to_sh[enefile]):
-      if verbose > 0:
-        print(YELLOW + f" {os.path.basename(enefile)}: stale .ene from different lambda settings, rerun needed" + ENDC)
-      statuslist.append(False)
+    elif enefile in ene_to_sh:
+      sh_path, start_snap, total_snap = ene_to_sh[enefile]
+      if not os.path.isfile(sh_path):
+        if verbose > 0:
+          print(YELLOW + f" {os.path.basename(enefile)}: stale .ene from different lambda settings, rerun needed" + ENDC)
+        statuslist.append(False)
+      elif total_snap > 0 and not _bar_sh_steps_match(sh_path, start_snap, total_snap):
+        if verbose > 0:
+          print(YELLOW + f" {os.path.basename(enefile)}: stale .ene from different simulation time, rerun needed" + ENDC)
+        statuslist.append(False)
+      else:
+        last_lines = _read_last_lines(enefile)
+        barfinished = any("BAR Estimate of -T*dS" in line for line in last_lines)
+        statuslist.append(barfinished)
     else:
       last_lines = _read_last_lines(enefile)
       barfinished = any("BAR Estimate of -T*dS" in line for line in last_lines)
