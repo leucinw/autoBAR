@@ -351,7 +351,7 @@ def bar():
           for p in [barpath, enepath]:
             if os.path.isfile(p): os.remove(p)
 
-        bar_done = os.path.isfile(barpath) and _ene_complete(enepath)
+        bar_done = os.path.isfile(barpath) and _ene_complete(enepath) and os.path.isfile(shpath)
         if not bar_done:
           if os.path.isfile(barpath) and verbose > 0:
             print(YELLOW + f" [Rerun] {barfile}: .bar exists but .ene missing/incomplete, resubmitting" + ENDC)
@@ -382,7 +382,7 @@ def bar():
             for p in [barpath, enepath]:
               if os.path.isfile(p): os.remove(p)
 
-          bar_done = os.path.isfile(barpath) and _ene_complete(enepath)
+          bar_done = os.path.isfile(barpath) and _ene_complete(enepath) and os.path.isfile(shpath)
           if not bar_done:
             if os.path.isfile(barpath) and verbose > 0:
               print(YELLOW + f" [Rerun] {barfile}: .bar exists but .ene missing/incomplete, resubmitting" + ENDC)

@@ -100,6 +100,7 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose):
   fep_liquidenes = []
   fep_gasperturbsteps = []
   fep_liquidperturbsteps = []
+  ene_to_sh = {}  # maps ene_path → expected sh_path for the current pair
   checkphases = phases
   if ignoregas == 1:
     checkphases = ['liquid']
@@ -121,9 +122,15 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose):
         idx = int(elb1_int / 10 - 10)
         enedir = os.path.join(homedir, phase, f'FEP_{idx:02d}')
 
+      e0 = f"{round(elb0 * 100):03d}"
+      e1 = f"{round(elb1 * 100):03d}"
+      v0 = f"{round(vlb0 * 100):03d}"
+      v1 = f"{round(vlb1 * 100):03d}"
+
       if phase == 'gas':
         enefile = fname1 + ".ene"
-        fname = fname1
+        enepath = os.path.join(enedir, enefile)
+        ene_to_sh[enepath] = os.path.join(enedir, f"bar_e{e1}-v{v1}_e{e0}-v{v0}.sh")
         if is_fep:
           _append_unique_ene(enedir, enefile, fep_gasenes, fep_gasperturbsteps, [fname1, fname0])
         else:
@@ -131,7 +138,8 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose):
 
       if phase == 'liquid':
         enefile = fname0 + ".ene"
-        fname = fname0
+        enepath = os.path.join(enedir, enefile)
+        ene_to_sh[enepath] = os.path.join(enedir, f"bar_e{e0}-v{v0}_e{e1}-v{v1}.sh")
         if is_fep:
           _append_unique_ene(enedir, enefile, fep_liquidenes, fep_liquidperturbsteps, [fname0, fname1])
         else:
@@ -141,6 +149,10 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose):
     if not os.path.isfile(enefile):
       if verbose > 0:
         print(RED + f" {os.path.basename(enefile)}: free energy file (.ene) not found!" + ENDC)
+      statuslist.append(False)
+    elif ene_to_sh.get(enefile) and not os.path.isfile(ene_to_sh[enefile]):
+      if verbose > 0:
+        print(YELLOW + f" {os.path.basename(enefile)}: stale .ene from different lambda settings, rerun needed" + ENDC)
       statuslist.append(False)
     else:
       last_lines = _read_last_lines(enefile)
