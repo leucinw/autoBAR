@@ -208,8 +208,8 @@ def _write_liquid_sh(liquid_dir, liquid_base, liquid_key,
         f"# output freq  : {md_t_out} ps  ({steps_per_frame} steps/frame)",
         f"# integrator   : {md_int_type}",
         f"# pressure      : {md_pressure} atm",
-        f"# n_equil       : {n_equil} frames",
-        f"# n_production  : {n_production} frames",
+        f"# n_equil       : {n_equil} frames  ({n_equil * steps_per_frame * md_dt / 1e6:.4g} ns)",
+        f"# n_production  : {n_production} frames  ({n_production * steps_per_frame * md_dt / 1e6:.4g} ns)",
         f"# total steps   : {total_steps}",
         "",
     ]
@@ -772,8 +772,6 @@ def main():
     # Default "neat_liq" avoids collision with autoBAR's ./liquid/ directory.
     liquid_base = settings.get("liquid_base", "neat_liq")
     liquid_key = settings.get("liquid_key", liquid_base)
-    n_equil = int(settings.get("n_equil", 200))
-    n_production = int(settings["n_production"])
     opt_params = settings["opt_params"]
     params_range = settings["params_range"]
 
@@ -882,11 +880,15 @@ def main():
             f"from {hfe_key} (removed vdw-annihilate, vdw-lambda, ele-lambda, ligand)"
         )
 
-    # MD run parameters read directly from settings.yaml.
-    md_dt = float(settings.get("md_dt", 2.0))
-    md_t_out = float(settings.get("md_t_out", 0.1))
-    md_int_type = str(settings.get("md_integrator", "4"))
-    md_pressure = float(settings.get("md_pressure", 1.0))
+    # Liquid MD parameters — shared keys with autoBAR HFE liquid settings.
+    md_dt = float(settings.get("liquid_md_time_step", 2.0))
+    md_t_out = float(settings.get("liquid_md_write_freq", 0.1))
+    md_int_type = "4"
+    md_pressure = float(settings.get("liquid_md_pressure", 1.0))
+    equil_time = float(settings.get("equil_time", 0.02))        # ns
+    production_time = float(settings["production_time"])         # ns
+    n_equil = round(equil_time * 1000.0 / md_t_out)
+    n_production = round(production_time * 1000.0 / md_t_out)
 
     sh_path = _write_liquid_sh(
         liquid_dir, liquid_base, liquid_key,
@@ -940,7 +942,8 @@ def main():
         log.info(f'  T={T:.1f} K: expt_density={rho_tgt} kg/m³  '
                  f'density_weight(effective)={d_weight:.6g}')
     log.info(f'total_mass: {total_mass:.4f} g/mol  liquid_dir: {liquid_dir}')
-    log.info(f'n_equil: {n_equil}  n_production: {n_production}  '
+    log.info(f'equil: {equil_time} ns ({n_equil} frames)  '
+             f'production: {production_time} ns ({n_production} frames)  '
              f'total MD steps per call: {total_md_steps}')
 
     # Cleanup covers every perturb_idx the optimizer could ever create this

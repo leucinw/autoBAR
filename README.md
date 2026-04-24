@@ -209,10 +209,15 @@ expt_density: 997.0                      # Experimental density in kg/m³
 
 liquid_dir: neat_liquid                  # Directory for neat-liquid MD (must NOT be "liquid"
                                          # — autoBAR already uses ./liquid/ for HFE windows)
-n_production: 500                        # Number of production frames per MD run
+production_time: 2.0                     # Production simulation time (ns)
 
 opt_params: "vdwpair-401-402 3.8 0.05"  # Force field term + initial parameter values
 params_range: "0.5 0.02"                # Search range (±) for each parameter
+
+# --- Liquid MD settings (shared between HFE and neat-liquid simulations) ---
+liquid_md_time_step:  2.0               # Integration timestep (fs)
+liquid_md_write_freq: 0.1               # Trajectory output interval (ps)
+liquid_md_pressure:   1.0               # Pressure (atm)
 
 # --- parmOPT optional ---
 hfe_weight: 1.0                          # Weight applied to the HFE residual (default: 1.0)
@@ -220,7 +225,7 @@ density_weight: 1.0                      # Weight applied to the density residua
 liquid_base: neat_liq                    # Coordinate/trajectory base name inside liquid_dir
                                          # (default: "neat_liq"); sets xyz/key/sh/arc/dyn names
 liquid_key: neat_liq                     # Key file basename (default: same as liquid_base)
-n_equil: 200                             # Frames to discard as equilibration (default: 200)
+equil_time: 0.5                          # Equilibration time (ns) — discarded before averaging (default: 0.02)
 ```
 
 ### Choosing the weights

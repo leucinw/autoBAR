@@ -41,11 +41,10 @@ liquid_key:   neat_liq     # Key file basename inside liquid_dir (default: same 
 # hfe_liquid_key: /path/to/hfe.key  # Optional HFE key to derive the neat-liquid key from;
                                     # defaults to <autobar_repo>/dat/liquid.key
 
-n_equil:      200          # Frames to discard as equilibration (default: 200)
-n_production: 800          # Production frames used for density and Jacobian
+equil_time:      0.02       # Equilibration time (ns) — frames discarded before averaging
+production_time: 0.08       # Production time (ns) — frames used for density and Jacobian
 
-# --- Tinker-GPU NPT MD parameters (liquid.sh is auto-generated from these) ---
-md_dt:        2.0          # Timestep (fs)
-md_t_out:     0.1          # Trajectory output interval (ps)
-md_integrator: "4"         # Tinker integrator code (4 = stochastic NPT)
-md_pressure:  1.0          # Pressure (atm)
+# --- Liquid MD parameters (shared with autoBAR HFE settings; liquid.sh is auto-generated) ---
+liquid_md_time_step:  2.0   # Integration timestep (fs)
+liquid_md_write_freq: 0.1   # Trajectory output interval (ps)
+liquid_md_pressure:   1.0   # Pressure (atm)
