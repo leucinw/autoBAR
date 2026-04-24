@@ -1,26 +1,51 @@
-# parmOPT.py settings
-# Existing settings
-parameters:   AMOEBAplus_Org.prm
-expt_hfe:     -6.0              # experimental hydration free energy (kcal/mol)
-opt_params:   "vdwpair-401-402 3.8 0.05"
-params_range: "0.3 0.02"
+# =============================================================================
+# parmOPT.py settings template
+# =============================================================================
+# Copy this file to your working directory and rename it settings.yaml.
+# Lines beginning with "#" are comments and are ignored.
 
-# Density target
-expt_density:   0.879           # experimental neat liquid density (kg/m³)
-hfe_weight:     1.0             # weight for HFE residual in least-squares
-density_weight: 1.0             # weight for density residual in least-squares
+# --- Required: force field and target ---
+parameters:   AMOEBAplus_Org.prm          # Tinker parameter file (.prm)
+expt_hfe:     -6.0                        # Experimental HFE (kcal/mol)
+opt_params:   "vdwpair-401-402 3.8 0.05" # Term key + initial parameter values
+params_range: "0.3 0.02"                  # Search range (±) for each parameter
 
-# Liquid MD setup
-liquid_dir:   "./liquid"        # directory containing liquid.xyz (and optionally liquid.key)
-liquid_key:   "liquid"          # neat-liquid key base name (without .key extension)
-# hfe_liquid_key: /path/to/hfe.key  # optional: HFE key used as fallback when liquid_key.key is
-                                     # missing; defaults to <autobar_repo>/dat/liquid.key
-temperature:  298.15            # MD temperature (K)
-n_equil:      200               # frames to discard as equilibration
-n_production: 800               # production frames used for density and Jacobian
+# --- Required: density target ---
+# Single-temperature form (scalar):
+temperature:    298.15    # Simulation temperature (K)
+expt_density:   789.0     # Experimental neat-liquid density at that temperature (kg/m³)
+                          # NOTE: units are kg/m³ (e.g. ethanol ≈ 789, water ≈ 997)
 
-# Tinker-GPU NPT MD parameters (liquid.sh is auto-generated from these)
-md_dt:        2.0               # timestep (fs)
-md_t_out:     0.1               # trajectory output interval (ps)
-md_integrator: "4"              # Tinker integrator code (4 = stochastic NPT)
-md_pressure:  1.0               # pressure (atm)
+# Multi-temperature form (list) — comment out the two scalar keys above and
+# uncomment the three list keys below to fit densities at multiple temperatures.
+# Each density_weight is divided by n_temps internally, so the aggregate
+# HFE/density balance is the same regardless of how many temperatures you use.
+# temperatures:    [278.15, 298.15, 318.15]   # list of simulation temperatures (K)
+# expt_densities:  [802.3,  789.0,  774.8]    # matching experimental densities (kg/m³)
+# density_weights: [1.0,    1.0,    1.0]       # per-temperature weights (optional)
+
+# --- Weights ---
+# The optimizer minimises: (hfe_weight·ΔHFE)² + Σ(density_weight_i·Δρ_i)²
+# Rule of thumb — set weight ≈ 1 / (acceptable error):
+#   HFE ≈ 0.2 kcal/mol  →  hfe_weight: 5.0
+#   density ≈ 2 kg/m³   →  density_weight: 0.5
+hfe_weight:     1.0       # weight for HFE residual (default: 1.0)
+density_weight: 1.0       # weight for density residual (scalar; ignored when
+                          # density_weights list is provided)
+
+# --- Liquid MD setup ---
+liquid_dir:   neat_liquid  # Directory for neat-liquid MD files.
+                           # MUST NOT be "liquid" — autoBAR uses ./liquid/ for HFE windows.
+liquid_base:  neat_liq     # Coordinate/trajectory base name inside liquid_dir (default: neat_liq)
+liquid_key:   neat_liq     # Key file basename inside liquid_dir (default: same as liquid_base)
+# hfe_liquid_key: /path/to/hfe.key  # Optional HFE key to derive the neat-liquid key from;
+                                    # defaults to <autobar_repo>/dat/liquid.key
+
+n_equil:      200          # Frames to discard as equilibration (default: 200)
+n_production: 800          # Production frames used for density and Jacobian
+
+# --- Tinker-GPU NPT MD parameters (liquid.sh is auto-generated from these) ---
+md_dt:        2.0          # Timestep (fs)
+md_t_out:     0.1          # Trajectory output interval (ps)
+md_integrator: "4"         # Tinker integrator code (4 = stochastic NPT)
+md_pressure:  1.0          # Pressure (atm)

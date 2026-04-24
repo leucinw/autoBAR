@@ -799,6 +799,8 @@ def main():
         )
 
     # Density weights: "density_weights" (list) or uniform "density_weight" (scalar).
+    # Weights are normalized by the number of temperatures so that adding more
+    # temperatures does not inflate the total density contribution to the cost.
     raw_dweights = settings.get("density_weights", None)
     if raw_dweights is not None:
         density_weights = [float(w) for w in raw_dweights]
@@ -810,6 +812,9 @@ def main():
     else:
         single_weight = float(settings.get("density_weight", 1.0))
         density_weights = [single_weight] * len(temperatures)
+
+    n_temps = len(temperatures)
+    density_weights = [w / n_temps for w in density_weights]
 
     beta_list = [1.0 / (_KB * T) for T in temperatures]
 
@@ -920,8 +925,11 @@ def main():
     log.info(f'initial_params {initial_params}')
     log.info(f'diff_step {diff_step}')
     log.info(f'expt_hfe: {expt_hfe} kcal/mol  hfe_weight: {hfe_weight}')
+    log.info(f'density weights normalized by n_temps={n_temps} '
+             f'(effective = user_weight / {n_temps})')
     for T, rho_tgt, d_weight in zip(temperatures, expt_densities, density_weights):
-        log.info(f'  T={T:.1f} K: expt_density={rho_tgt} kg/m³  density_weight={d_weight}')
+        log.info(f'  T={T:.1f} K: expt_density={rho_tgt} kg/m³  '
+                 f'density_weight(effective)={d_weight:.6g}')
     log.info(f'total_mass: {total_mass:.4f} g/mol  liquid_dir: {liquid_dir}')
     log.info(f'n_equil: {n_equil}  n_production: {n_production}  '
              f'total MD steps per call: {total_md_steps}')

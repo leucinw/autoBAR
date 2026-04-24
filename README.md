@@ -195,13 +195,17 @@ It uses `scipy.optimize.least_squares` (TRF, soft-L1 loss) with a custom Jacobia
 
 ### Required settings
 
-Add these fields to `settings.yaml`:
+Add these fields to `settings.yaml` (copy `utils/settings.yaml` as a starting point):
 
 ```yaml
 # --- parmOPT required ---
+parameters: forcefield.prm               # Tinker parameter file
 expt_hfe: -4.75                          # Experimental HFE (kcal/mol)
+
+# Single-temperature density target (scalar form):
 temperature: 298.15                      # Simulation temperature (K)
-expt_density: 997.0                      # Experimental density at that temperature (kg/m³)
+expt_density: 997.0                      # Experimental density in kg/m³
+                                         # NOTE: units are kg/m³ — water ≈ 997, ethanol ≈ 789
 
 liquid_dir: neat_liquid                  # Directory for neat-liquid MD (must NOT be "liquid"
                                          # — autoBAR already uses ./liquid/ for HFE windows)
@@ -269,13 +273,25 @@ to guide the adjustment.
 
 ### Multi-temperature density fitting
 
-Providing densities at multiple temperatures simultaneously constrains the parameter search and reduces overfitting. Use list-valued keys in place of their scalar counterparts:
+Providing densities at multiple temperatures simultaneously constrains the parameter search and reduces overfitting.
+
+Replace the scalar `temperature` / `expt_density` keys with their list counterparts:
 
 ```yaml
-temperatures: [278.15, 298.15, 318.15]  # replaces "temperature"
-expt_densities: [999.9, 997.0, 989.3]  # replaces "expt_density"; must match length; in kg/m³
-density_weights: [1.0, 1.0, 1.0]        # optional; replaces "density_weight"
+# Replace these scalar keys:
+#   temperature: 298.15
+#   expt_density: 997.0
+
+# With these list keys (lengths must match):
+temperatures:    [278.15, 298.15, 318.15]  # temperatures in K
+expt_densities:  [999.9,  997.0,  989.3]   # experimental densities in kg/m³ at each T
+density_weights: [1.0,    1.0,    1.0]      # optional per-T weights; replaces density_weight
 ```
+
+> **Important:** `expt_densities` values must be in **kg/m³**, not g/cm³.
+> Common reference values: water 278 K → 999.9, 298 K → 997.0, 318 K → 989.3 kg/m³.
+
+**Weight normalization:** each `density_weight` is divided by the number of temperatures internally, so the total density contribution to the cost is the same whether you fit at one temperature or ten. The user-specified weights control the *relative* importance of each temperature; the *aggregate* HFE/density balance is unchanged. The effective weights are printed to `parmOPT.log` at startup.
 
 autoBAR runs the HFE calculation once per optimizer call. Liquid MD is run sequentially for each temperature, producing temperature-tagged arc files (`neat_liq_298.2K.arc`, etc.) so that dyn-file checkpointing and parallel `$ANALYZE` calls work correctly across all temperatures.
 
