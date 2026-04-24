@@ -60,7 +60,14 @@ def _log_step_table(step, params, hfe, densities):
             f"{rho - rho_tgt:>{col[3]+1}.3f}"
         )
 
-    log.info(f"--- Step {step} | params: {np.array2string(params, precision=6)} ---")
+    opt_entries = _config["opt_entries"]
+    param_parts = []
+    for e in opt_entries:
+        full = _reconstruct_entry_params(params, e)
+        vals = [f"{v:.6g}" + ("" if is_free else "(fixed)")
+                for v, is_free in zip(full, e["free_mask"])]
+        param_parts.append(f"{e['term_idx']}=[{', '.join(vals)}]")
+    log.info(f"--- Step {step} | {' | '.join(param_parts)} ---")
     log.info(hdr)
     log.info(sep)
     for row in rows:
@@ -480,6 +487,21 @@ def _collect_analyze(proc, tmp_key):
             pass
 
 
+def _reconstruct_entry_params(free_params, entry):
+    """Merge optimizer's free params with fixed values for one opt entry.
+
+    Returns the full parameter list (free + fixed) in original order,
+    suitable for writing to the parameter file.
+    """
+    full = list(entry["all_params"])
+    fi = entry["free_start"]
+    for k, is_free in enumerate(entry["free_mask"]):
+        if is_free:
+            full[k] = free_params[fi]
+            fi += 1
+    return full
+
+
 def _density_jacobian_col(rho_frames, E_plus, E_minus, beta, diff_step):
     """Compute d<ρ>/dλ_j via Equation 4 of Wang et al. (2013).
 
@@ -587,25 +609,26 @@ def model_func(params):
 
 
 def write_prm(params, fname):
-    """Write the current opt line into *fname*.
+    """Write one opt line per parameter group into *fname*.
 
     The in-tree ``param_file`` is rebuilt from the pristine snapshot before
     every write, so optimizer iterations never accumulate duplicate opt
     lines. Sidecar files (``param_file_NN``) are also derived from the
     snapshot, not from the (possibly modified) in-tree file.
     """
-    param_file = _config["param_file"]
-    opt_term_idx = _config["opt_term_idx"]
     snapshot = _config["param_file_snapshot"]
+    opt_entries = _config["opt_entries"]
 
     if not os.path.isfile(snapshot):
         raise FileNotFoundError(f"Parameter snapshot not found: {snapshot}")
 
     shutil.copy(snapshot, fname)
     with open(fname, 'a') as f:
-        line = (opt_term_idx.replace('-', '   ')
-                + '  ' + '  '.join(str(p) for p in params) + '\n')
-        f.write(line)
+        for entry in opt_entries:
+            full = _reconstruct_entry_params(params, entry)
+            line = (entry["term_idx"].replace('-', '   ')
+                    + '  ' + '  '.join(str(p) for p in full) + '\n')
+            f.write(line)
 
 
 def jacobian_fd(params):
@@ -772,8 +795,19 @@ def main():
     # Default "neat_liq" avoids collision with autoBAR's ./liquid/ directory.
     liquid_base = settings.get("liquid_base", "neat_liq")
     liquid_key = settings.get("liquid_key", liquid_base)
-    opt_params = settings["opt_params"]
-    params_range = settings["params_range"]
+    raw_opt_params = settings["opt_params"]
+    if isinstance(raw_opt_params, str):
+        raw_opt_params = [raw_opt_params]
+
+    raw_params_range = settings["params_range"]
+    if isinstance(raw_params_range, str):
+        raw_params_range = [raw_params_range]
+
+    if len(raw_opt_params) != len(raw_params_range):
+        sys.exit(
+            f"[Error] opt_params has {len(raw_opt_params)} entry(ies) but "
+            f"params_range has {len(raw_params_range)}; they must match."
+        )
 
     # Multi-temperature support: "temperatures" (list) takes priority over
     # the single-value "temperature" key for backward compatibility.
@@ -819,32 +853,80 @@ def main():
     # parmOPT.py lives in <repo>/utils/, so autoBAR.py is one level up.
     autobar_path = str(Path(__file__).resolve().parent.parent / 'autoBAR.py')
 
-    # opt_params format: "vdwpair-401-402 3.8 0.05"
-    s = opt_params.split()
-    opt_term_idx = s[0]
-    initial_params = np.atleast_1d([float(x) for x in s[1:]])
+    # Parse each opt_params entry: "term_key p1 p2 ..." with a matching params_range "r1 r2 ..."
+    # A range of 0 for a parameter marks it as fixed: excluded from the optimizer but
+    # still written to the parameter file at its initial value.
+    opt_entries = []
+    all_initial = []
+    all_lb = []
+    all_ub = []
+    free_start = 0
+
+    for op_str, pr_str in zip(raw_opt_params, raw_params_range):
+        s = op_str.split()
+        term_idx = s[0]
+        entry_params = np.array([float(x) for x in s[1:]])
+        n = len(entry_params)
+        if n == 0:
+            sys.exit(f"[Error] opt_params entry '{op_str}' has no parameter values after the term key.")
+
+        range_vals = [float(v) for v in pr_str.split()]
+        if len(range_vals) != n:
+            sys.exit(
+                f"[Error] params_range entry '{pr_str}' has {len(range_vals)} value(s) but "
+                f"opt_params entry '{op_str}' has {n} parameter(s); they must match."
+            )
+
+        free_mask = [rv != 0.0 for rv in range_vals]
+        n_free = sum(free_mask)
+        if n_free == 0:
+            log.warning(
+                f"All parameters in '{term_idx}' have range=0 and will be fixed; "
+                f"the entry is written unchanged but contributes no free variables."
+            )
+
+        entry_lb = []
+        entry_ub = []
+        for ep, rv, is_free in zip(entry_params, range_vals, free_mask):
+            if is_free:
+                entry_lb.append(ep - rv)
+                entry_ub.append(ep + rv)
+        entry_lb = np.array(entry_lb)
+        entry_ub = np.array(entry_ub)
+
+        # Clamp non-positive lower bounds — letting vdw-style parameters
+        # (sigma, epsilon) go through zero sends Tinker into unphysical regimes.
+        if len(entry_lb) > 0:
+            bad = entry_lb <= 0
+            if bad.any():
+                log.warning(
+                    f"params_range for '{term_idx}' would drive lb <= 0 at free indices "
+                    f"{np.where(bad)[0].tolist()}; clamping to {_MIN_LOWER_BOUND}."
+                )
+                entry_lb = np.where(bad, _MIN_LOWER_BOUND, entry_lb)
+
+        opt_entries.append({
+            "term_idx": term_idx,
+            "all_params": entry_params.copy(),
+            "free_mask": free_mask,
+            "n_free": n_free,
+            "free_start": free_start,
+        })
+        free_entry_params = entry_params[np.array(free_mask, dtype=bool)]
+        all_initial.extend(free_entry_params)
+        all_lb.extend(entry_lb)
+        all_ub.extend(entry_ub)
+        free_start += n_free
+
+    initial_params = np.array(all_initial)
     n_params = len(initial_params)
-
-    # form the upper and lower bound
-    range_values = params_range.split()
-    if len(range_values) != n_params:
+    if n_params == 0:
         sys.exit(
-            f"[Error] params_range has {len(range_values)} value(s) but "
-            f"opt_params has {n_params} parameter(s); they must match."
+            "[Error] No free parameters to optimize. "
+            "Set at least one non-zero value in params_range."
         )
-    range_values = np.array([float(v) for v in range_values])
-    lb = initial_params - range_values
-    ub = initial_params + range_values
-
-    # Clamp non-positive lower bounds — letting vdw-style parameters
-    # (sigma, epsilon) go through zero sends Tinker into unphysical regimes.
-    bad = lb <= 0
-    if bad.any():
-        log.warning(
-            f"params_range would drive lb <= 0 for indices "
-            f"{np.where(bad)[0].tolist()}; clamping to {_MIN_LOWER_BOUND}."
-        )
-        lb = np.where(bad, _MIN_LOWER_BOUND, lb)
+    lb = np.array(all_lb)
+    ub = np.array(all_ub)
     bounds = (lb, ub)
 
     # Snapshot the user's pristine parameter file so write_prm can rebuild
@@ -907,7 +989,7 @@ def main():
         "density_weights": density_weights,
         "temperatures": temperatures,
         "beta_list": beta_list,
-        "opt_term_idx": opt_term_idx,
+        "opt_entries": opt_entries,
         "initial_params": initial_params,
         "autobar_path": autobar_path,
         "diff_step": diff_step,
@@ -932,9 +1014,20 @@ def main():
     total_md_steps = total_md_frames * steps_per_frame
 
     log.info("=== Optimization Settings ===")
-    log.info(f'bounds {bounds}')
-    log.info(f'initial_params {initial_params}')
     log.info(f'diff_step {diff_step}')
+    log.info(f'parameter groups ({len(opt_entries)}):')
+    for entry in opt_entries:
+        fs = entry["free_start"]
+        nf = entry["n_free"]
+        fi = 0
+        parts = []
+        for p, is_free in zip(entry["all_params"], entry["free_mask"]):
+            if is_free:
+                parts.append(f"{p:.6g} [{lb[fs+fi]:.6g}, {ub[fs+fi]:.6g}]")
+                fi += 1
+            else:
+                parts.append(f"{p:.6g}(fixed)")
+        log.info(f'  {entry["term_idx"]}: {", ".join(parts)}')
     log.info(f'expt_hfe: {expt_hfe} kcal/mol  hfe_weight: {hfe_weight}')
     log.info(f'density weights normalized by n_temps={n_temps} '
              f'(effective = user_weight / {n_temps})')

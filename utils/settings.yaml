@@ -7,8 +7,24 @@
 # --- Required: force field and target ---
 parameters:   AMOEBAplus_Org.prm          # Tinker parameter file (.prm)
 expt_hfe:     -6.0                        # Experimental HFE (kcal/mol)
-opt_params:   "vdwpair-401-402 3.8 0.05" # Term key + initial parameter values
-params_range: "0.3 0.02"                  # Search range (±) for each parameter
+
+# opt_params / params_range: one string optimizes a single parameter group;
+# a YAML list optimizes multiple groups simultaneously.
+# Use 0 in params_range to fix a parameter (excluded from optimizer, written unchanged).
+#
+# Single-group form (string):
+opt_params:   "vdwpair-401-402 3.8 0.05" # term_key  initial_p1  initial_p2 ...
+params_range: "0.3 0"                     # 0.3 range on R; epsilon fixed at 0.05
+#
+# Multi-group form (list) — uncomment and replace the two lines above:
+# opt_params:
+#   - "vdw-401    3.80 0.050"   # R and epsilon on atom type 401
+#   - "vdw-402    3.60 0.060"   # R and epsilon on atom type 402
+#   - "chgpen-403 5.00 0.800"   # chgpen params on atom type 403
+# params_range:
+#   - "0.30 0"      # optimize R only; epsilon fixed
+#   - "0.30 0.02"   # optimize both R and epsilon
+#   - "0.50 0.05"   # optimize both chgpen params
 
 # --- Required: density target ---
 # Single-temperature form (scalar):

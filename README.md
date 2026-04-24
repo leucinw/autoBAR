@@ -212,7 +212,7 @@ liquid_dir: neat_liquid                  # Directory for neat-liquid MD (must NO
 production_time: 2.0                     # Production simulation time (ns)
 
 opt_params: "vdwpair-401-402 3.8 0.05"  # Force field term + initial parameter values
-params_range: "0.5 0.02"                # Search range (±) for each parameter
+params_range: "0.5 0.02"                # Search range (±) per parameter; use 0 to fix
 
 # --- Liquid MD settings (shared between HFE and neat-liquid simulations) ---
 liquid_md_time_step:  2.0               # Integration timestep (fs)
@@ -299,6 +299,46 @@ density_weights: [1.0,    1.0,    1.0]      # optional per-T weights; replaces d
 **Weight normalization:** each `density_weight` is divided by the number of temperatures internally, so the total density contribution to the cost is the same whether you fit at one temperature or ten. The user-specified weights control the *relative* importance of each temperature; the *aggregate* HFE/density balance is unchanged. The effective weights are printed to `parmOPT.log` at startup.
 
 autoBAR runs the HFE calculation once per optimizer call. Liquid MD is run sequentially for each temperature, producing temperature-tagged arc files (`neat_liq_298.2K.arc`, etc.) so that dyn-file checkpointing and parallel `$ANALYZE` calls work correctly across all temperatures.
+
+### Optimizing multiple parameter groups
+
+`opt_params` and `params_range` accept either a single string (one group) or a YAML list (multiple groups). Each list entry is one independent force-field term; all groups are optimized simultaneously.
+
+```yaml
+opt_params:
+  - "vdw-401    3.80 0.050"   # R and epsilon on atom type 401
+  - "vdw-402    3.60 0.060"   # R and epsilon on atom type 402
+  - "chgpen-403 5.00 0.800"   # two chgpen parameters on atom type 403
+params_range:
+  - "0.30 0.02"
+  - "0.30 0.02"
+  - "0.50 0.05"
+```
+
+The optimizer sees a single flat parameter vector formed by concatenating the free parameters from all groups; `write_prm` splits it back and writes one line per group.
+
+### Fixing individual parameters
+
+Use `0` in `params_range` to hold a parameter constant. That parameter is excluded from the optimizer but still written to the parameter file at its initial value:
+
+```yaml
+# Optimize R only; keep epsilon fixed at 0.050
+opt_params:   "vdw-401 3.80 0.050"
+params_range: "0.30 0"
+```
+
+This works for both the single-string and list forms:
+
+```yaml
+opt_params:
+  - "vdw-401    3.80 0.050"   # optimize R only
+  - "chgpen-403 5.00 0.800"   # optimize both params
+params_range:
+  - "0.30 0"      # 0 → epsilon is fixed
+  - "0.50 0.05"
+```
+
+Fixed parameters are annotated as `(fixed)` in each step's log line in `parmOPT.log`.
 
 ### Neat-liquid directory layout
 
