@@ -199,6 +199,12 @@ def _run_liquid_md(prm_file):
 
     arc_path = os.path.join(liquid_dir, "liquid.arc")
     log_path = os.path.join(liquid_dir, "liquid-md.log")
+    dyn_path = os.path.join(liquid_dir, "liquid.dyn")
+
+    # Remove .dyn to force a fresh start unless the previous step improved cost.
+    if not _config.get("use_dyn", False):
+        Path(dyn_path).unlink(missing_ok=True)
+
     Path(arc_path).unlink(missing_ok=True)   # clear stale arc before fresh run
 
     try:
@@ -385,6 +391,8 @@ def model_func(params):
         hfe = fe1
 
     # --- Density: fresh MD at current params ---
+    use_dyn = _config.get("use_dyn", False)
+    print(f'Running liquid MD ({"continuing from .dyn" if use_dyn else "fresh start"}) ...')
     _, log_path = _run_liquid_md(current_prm)
     rho_frames = _parse_liquid_trajectory(log_path, n_equil)
     _config["rho_frames"] = rho_frames
@@ -393,10 +401,23 @@ def model_func(params):
     print(f'Current params: {params}')
     print(f'Current HFE: {hfe:.4f} kcal/mol   Density: {density:.5f} g/cm³')
 
-    return np.array([
+    residuals = np.array([
         hfe_weight * (hfe - expt_hfe),
         density_weight * (density - expt_density),
     ])
+
+    # Decide whether the next MD run should continue from the .dyn file.
+    current_cost = float(np.dot(residuals, residuals))
+    best_cost = _config.get("best_cost", np.inf)
+    if current_cost < best_cost:
+        _config["best_cost"] = current_cost
+        _config["use_dyn"] = True
+        print(f'Cost improved ({current_cost:.6f} < {best_cost:.6f}) → next MD will use .dyn')
+    else:
+        _config["use_dyn"] = False
+        print(f'Cost did not improve ({current_cost:.6f} >= {best_cost:.6f}) → next MD will start fresh')
+
+    return residuals
 
 
 def write_prm(params, fname):
@@ -653,6 +674,8 @@ def main():
         "md_temperature": md_temperature,
         "md_pressure": md_pressure,
         "rho_frames": None,
+        "use_dyn": False,
+        "best_cost": np.inf,
     })
 
     steps_per_frame = round(md_t_out * 1000.0 / md_dt)
