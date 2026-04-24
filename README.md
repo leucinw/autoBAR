@@ -29,7 +29,7 @@ autoBAR/
 ├── utils/                  # Utility modules
 │   ├── checkautobar.py     # Progress monitoring for MD and BAR jobs
 │   ├── elescale.py         # Electrostatic parameter scaling
-│   ├── parmOPT.py          # Parameter optimization targeting experimental HFE
+│   ├── parmOPT.py          # Parameter optimization targeting experimental HFE and liquid density
 │   └── submitTinker.py     # Cluster job submission helper
 └── examples/               # Ready-to-use example systems
     ├── Ion-HFE/            # Na⁺ hydration free energy
@@ -185,18 +185,131 @@ This is useful for sensitivity analysis or parameter optimization (see `utils/pa
 
 ## Parameter Optimization
 
-The `utils/parmOPT.py` utility optimizes force field parameters to match experimental hydration free energies:
+The `utils/parmOPT.py` utility optimizes force field parameters to simultaneously match experimental hydration free energy (HFE) and neat liquid density at one or more temperatures:
 
 ```bash
 python utils/parmOPT.py
 ```
 
-It uses `scipy.optimize.least_squares` with a central finite-difference Jacobian computed in parallel. Add these fields to `settings.yaml`:
+It uses `scipy.optimize.least_squares` (TRF, soft-L1 loss) with a custom Jacobian. The HFE row is evaluated by one-step FEP via autoBAR; each density row uses the fluctuation formula (Wang et al. 2013, Eq. 4) applied to the most recent per-temperature trajectory, with all `$ANALYZE` calls dispatched in parallel alongside the autoBAR HFE run.
+
+### Required settings
+
+Add these fields to `settings.yaml`:
 
 ```yaml
-expt_hfe: -4.75               # Experimental HFE (kcal/mol)
-opt_params: "vdwpair-401-402 3.8 0.05"  # Term, initial values
-params_range: "0.5 0.02"      # Search range for each parameter
+# --- parmOPT required ---
+expt_hfe: -4.75                          # Experimental HFE (kcal/mol)
+temperature: 298.15                      # Simulation temperature (K)
+expt_density: 997.0                      # Experimental density at that temperature (kg/m³)
+
+liquid_dir: neat_liquid                  # Directory for neat-liquid MD (must NOT be "liquid"
+                                         # — autoBAR already uses ./liquid/ for HFE windows)
+n_production: 500                        # Number of production frames per MD run
+
+opt_params: "vdwpair-401-402 3.8 0.05"  # Force field term + initial parameter values
+params_range: "0.5 0.02"                # Search range (±) for each parameter
+
+# --- parmOPT optional ---
+hfe_weight: 1.0                          # Weight applied to the HFE residual (default: 1.0)
+density_weight: 1.0                      # Weight applied to the density residual (default: 1.0)
+liquid_base: neat_liq                    # Coordinate/trajectory base name inside liquid_dir
+                                         # (default: "neat_liq"); sets xyz/key/sh/arc/dyn names
+liquid_key: neat_liq                     # Key file basename (default: same as liquid_base)
+n_equil: 200                             # Frames to discard as equilibration (default: 200)
+```
+
+### Choosing the weights
+
+The optimizer minimizes the sum of squared weighted residuals:
+
+```
+cost = (hfe_weight × ΔHFE)² + Σ (density_weight_i × Δρ_i)²
+```
+
+Because HFE is in kcal/mol and density is in kg/m³, a raw error of 1 kcal/mol
+and a raw error of 1 kg/m³ are physically very different but contribute equally to
+the cost when both weights are 1.0. This imbalance will cause the optimizer to
+focus almost entirely on density and neglect HFE. The weights should be chosen so
+that a *chemically meaningful* error in each property produces a similar cost
+contribution.
+
+**Rule of thumb — inverse acceptable error:**
+
+| Property | Typical acceptable error | Suggested weight |
+|----------|--------------------------|------------------|
+| HFE | 0.2 kcal/mol | `hfe_weight: 5.0` |
+| Density (kg/m³) | 2 kg/m³ | `density_weight: 0.5` |
+
+Both give a weighted residual of ~1 at the acceptable-error threshold, so neither
+property dominates the other.
+
+You can also set the weights relative to each other without fixing a scale.
+A useful starting point is:
+
+```
+density_weight / hfe_weight ≈ (target HFE precision) / (target density precision)
+                             = 0.2 kcal/mol / 2 kg/m³  =  0.1
+```
+
+For example, `hfe_weight: 1.0` and `density_weight: 0.1` means a 1 kcal/mol HFE
+error costs the same as a 10 kg/m³ density error.
+
+**Practical starting suggestion for water-like solvents:**
+
+```yaml
+hfe_weight: 1.0
+density_weight: 0.1
+```
+
+If the optimized parameters drift too far from the experimental density while
+fitting HFE well (or vice versa), increase the weight of the lagging property by
+a factor of 2–5 and rerun. Monitor both residuals in `parmOPT.log` at each step
+to guide the adjustment.
+
+### Multi-temperature density fitting
+
+Providing densities at multiple temperatures simultaneously constrains the parameter search and reduces overfitting. Use list-valued keys in place of their scalar counterparts:
+
+```yaml
+temperatures: [278.15, 298.15, 318.15]  # replaces "temperature"
+expt_densities: [999.9, 997.0, 989.3]  # replaces "expt_density"; must match length; in kg/m³
+density_weights: [1.0, 1.0, 1.0]        # optional; replaces "density_weight"
+```
+
+autoBAR runs the HFE calculation once per optimizer call. Liquid MD is run sequentially for each temperature, producing temperature-tagged arc files (`neat_liq_298.2K.arc`, etc.) so that dyn-file checkpointing and parallel `$ANALYZE` calls work correctly across all temperatures.
+
+### Neat-liquid directory layout
+
+> **Important:** set `liquid_dir` to a name other than `liquid` (e.g., `neat_liquid`).
+> autoBAR creates `./liquid/` and `./gas/` for the HFE alchemical windows; a conflicting
+> `liquid_dir: liquid` would mix those files with the pure-liquid MD trajectories.
+
+`liquid_dir` must contain files named after `liquid_base` (default `neat_liq`):
+
+| File | Description |
+|------|-------------|
+| `neat_liq.xyz` | Simulation box Tinker coordinates |
+| `neat_liq.key` (or the name set by `liquid_key`) | Tinker key file |
+| `neat_liq.sh` | Shell script with a `$DYNAMIC neat_liq ...` line — parsed for timestep, write interval, integrator type, and pressure |
+
+Example directory after a run:
+```
+neat_liquid/
+├── neat_liq.xyz
+├── neat_liq.key
+├── neat_liq.sh
+├── neat_liq.arc          # trajectory (single temperature)
+└── neat_liq.dyn          # Tinker checkpoint for dyn-file reuse
+```
+
+For multi-temperature runs the arc and dyn files are tagged by temperature:
+```
+neat_liquid/
+├── neat_liq_278.2K.arc
+├── neat_liq_278.2K.dyn
+├── neat_liq_298.2K.arc
+└── neat_liq_298.2K.dyn
 ```
 
 ## Recommended Minimal Settings

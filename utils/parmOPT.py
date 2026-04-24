@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Used to do parameter optimization targeting expt. HFE and neat liquid density.
-Necessary settings are in the main settings.yaml file
+Used to do parameter optimization targeting expt. HFE and neat liquid density
+at one or more temperatures. Necessary settings are in the main settings.yaml file
 
 Example usage: python parmOPT.py
 
@@ -11,6 +11,7 @@ Example usage: python parmOPT.py
 """
 
 import glob as globmod
+import logging
 import os
 import re
 import shutil
@@ -27,6 +28,60 @@ from scipy.optimize import least_squares
 # Populated once in main() and read by model_func / write_prm / jacobian_fd.
 _config = {}
 
+log = logging.getLogger(__name__)
+
+
+def _log_step_table(step, params, hfe, densities):
+    """Log a per-step summary table comparing current vs. target properties."""
+    expt_hfe = _config["expt_hfe"]
+    expt_densities = _config["expt_densities"]
+    temperatures = _config["temperatures"]
+
+    col = (24, 12, 12, 12)   # column widths: property, target, current, diff
+    hdr = (f"{'Property':<{col[0]}}"
+           f"{'Target':>{col[1]}}"
+           f"{'Current':>{col[2]}}"
+           f"{'Diff':>{col[3]}}")
+    sep = "-" * sum(col)
+
+    rows = []
+    rows.append(
+        f"{'HFE (kcal/mol)':<{col[0]}}"
+        f"{expt_hfe:>{col[1]}.4f}"
+        f"{hfe:>{col[2]}.4f}"
+        f"{hfe - expt_hfe:>{col[3]+1}.4f}"
+    )
+    for T, rho, rho_tgt in zip(temperatures, densities, expt_densities):
+        label = f"Density@{T:.1f}K (kg/m³)"
+        rows.append(
+            f"{label:<{col[0]}}"
+            f"{rho_tgt:>{col[1]}.3f}"
+            f"{rho:>{col[2]}.3f}"
+            f"{rho - rho_tgt:>{col[3]+1}.3f}"
+        )
+
+    log.info(f"--- Step {step} | params: {np.array2string(params, precision=6)} ---")
+    log.info(hdr)
+    log.info(sep)
+    for row in rows:
+        log.info(row)
+    log.info(sep)
+
+
+def _setup_logging(log_file="parmOPT.log"):
+    """Write progress to both the console and *log_file* (overwritten each run)."""
+    fmt = logging.Formatter(
+        "%(asctime)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    fh = logging.FileHandler(log_file, mode='w')
+    fh.setFormatter(fmt)
+    ch = logging.StreamHandler()
+    ch.setFormatter(fmt)
+    log.setLevel(logging.DEBUG)
+    log.addHandler(fh)
+    log.addHandler(ch)
+
 # Smallest positive lower bound we allow for any parameter — prevents the
 # optimizer from driving vdw-style quantities (sigma, epsilon) through zero
 # into unphysical territory.
@@ -35,8 +90,8 @@ _MIN_LOWER_BOUND = 1e-4
 # kB in kcal/(mol·K)
 _KB = 0.001987204
 
-# Combined factor for density: ρ (g/cm³) = M (g/mol) / (0.6022140857 × V (Å³))
-_DENSITY_FACTOR = 0.6022140857
+# Combined factor for density: ρ (kg/m³) = M (g/mol) / (0.0006022140857 × V (Å³))
+_DENSITY_FACTOR = 0.0006022140857
 
 
 def _remove_matching(pattern):
@@ -156,29 +211,60 @@ def _parse_liquid_sh(sh_file):
     raise ValueError(f"No $DYNAMIC line found in {sh_file}")
 
 
-def _run_liquid_md(prm_file):
-    """Run liquid NPT MD with prm_file parameters. Returns (arc_path, log_path).
+def _run_liquid_md(prm_file, temperature=None):
+    """Run neat-liquid NPT MD at *temperature* with prm_file parameters.
 
-    Runs $DYNAMIC for (n_equil + n_production) frames using the MD parameters
-    parsed from liquid.sh, but with a key file that points to prm_file.
+    Returns (arc_path, log_path). When multiple temperatures are configured,
+    the arc and dyn files are stored with temperature-tagged names so that
+    parallel analyze jobs and dyn-file reuse work correctly across temperatures.
+
+    Tinker names its output after the coordinate base name (``liquid_base``);
+    for multi-temperature runs we rename those files immediately after each run
+    so each temperature keeps its own checkpoint.
     """
     dynamic_cmd = os.environ.get('DYNAMIC')
     if not dynamic_cmd:
         raise RuntimeError("$DYNAMIC environment variable is not set")
 
     liquid_dir = _config["liquid_dir"]
+    liquid_base = _config["liquid_base"]
     n_equil = _config["n_equil"]
     n_production = _config["n_production"]
     md_dt = _config["md_dt"]
     md_t_out = _config["md_t_out"]
     md_int_type = _config["md_int_type"]
-    md_temperature = _config["md_temperature"]
     md_pressure = _config["md_pressure"]
     liquid_key_file = _config["liquid_key_file"]
+    temperatures = _config["temperatures"]
 
-    # steps_per_frame: convert output interval (ps) to steps
-    steps_per_frame = round(md_t_out * 1000.0 / md_dt)
-    n_steps = (n_equil + n_production) * steps_per_frame
+    if temperature is None:
+        temperature = temperatures[0]
+
+    # Tinker writes arc/dyn using liquid_base as the stem; for multi-temp runs
+    # we save per-temperature copies so each temperature keeps its own checkpoint.
+    multi_temp = len(temperatures) > 1
+    arc_tinker = os.path.join(liquid_dir, f"{liquid_base}.arc")
+    dyn_tinker = os.path.join(liquid_dir, f"{liquid_base}.dyn")
+
+    if multi_temp:
+        tag = f"_{temperature:.1f}K"
+        arc_path = os.path.join(liquid_dir, f"{liquid_base}{tag}.arc")
+        dyn_tagged = os.path.join(liquid_dir, f"{liquid_base}{tag}.dyn")
+        log_path = os.path.join(liquid_dir, f"{liquid_base}{tag}-md.log")
+        # Restore per-temperature .dyn so Tinker can continue from it, or
+        # remove it to force a fresh start.
+        if _config.get("use_dyn", False) and os.path.isfile(dyn_tagged):
+            shutil.copy(dyn_tagged, dyn_tinker)
+        else:
+            Path(dyn_tinker).unlink(missing_ok=True)
+    else:
+        arc_path = arc_tinker
+        dyn_tagged = dyn_tinker
+        log_path = os.path.join(liquid_dir, f"{liquid_base}-md.log")
+        if not _config.get("use_dyn", False):
+            Path(dyn_tinker).unlink(missing_ok=True)
+
+    Path(arc_tinker).unlink(missing_ok=True)   # clear stale arc before fresh run
 
     # Build a temp key file with PARAMETERS pointing to prm_file
     with open(liquid_key_file) as f:
@@ -197,22 +283,15 @@ def _run_liquid_md(prm_file):
         tmp_key_path = tmp.name
     tmp_key_base = Path(tmp_key_path).stem   # Tinker wants name without .key
 
-    arc_path = os.path.join(liquid_dir, "liquid.arc")
-    log_path = os.path.join(liquid_dir, "liquid-md.log")
-    dyn_path = os.path.join(liquid_dir, "liquid.dyn")
-
-    # Remove .dyn to force a fresh start unless the previous step improved cost.
-    if not _config.get("use_dyn", False):
-        Path(dyn_path).unlink(missing_ok=True)
-
-    Path(arc_path).unlink(missing_ok=True)   # clear stale arc before fresh run
+    steps_per_frame = round(md_t_out * 1000.0 / md_dt)
+    n_steps = (n_equil + n_production) * steps_per_frame
 
     try:
         with open(log_path, 'w') as log_f:
             rc = subprocess.run(
-                [dynamic_cmd, 'liquid', '-k', tmp_key_base,
+                [dynamic_cmd, liquid_base, '-k', tmp_key_base,
                  str(n_steps), str(md_dt), str(md_t_out),
-                 md_int_type, str(md_temperature), str(md_pressure)],
+                 md_int_type, str(temperature), str(md_pressure)],
                 cwd=liquid_dir,
                 stdout=log_f,
                 stderr=subprocess.STDOUT,
@@ -225,13 +304,19 @@ def _run_liquid_md(prm_file):
 
     if rc != 0:
         raise RuntimeError(f"$DYNAMIC exited with code {rc}")
-    if not os.path.isfile(arc_path):
-        raise RuntimeError("liquid.arc not produced by $DYNAMIC")
+    if not os.path.isfile(arc_tinker):
+        raise RuntimeError(f"{liquid_base}.arc not produced by $DYNAMIC")
+
+    if multi_temp:
+        shutil.move(arc_tinker, arc_path)
+        if os.path.isfile(dyn_tinker):
+            shutil.copy(dyn_tinker, dyn_tagged)   # save per-temperature checkpoint
+
     return arc_path, log_path
 
 
 def _parse_liquid_trajectory(log_file, n_equil):
-    """Parse liquid-md.log → rho_frames (g/cm³) after skipping n_equil frames."""
+    """Parse liquid MD log → rho_frames (kg/m³) after skipping n_equil frames."""
     total_mass = _config["total_mass"]
     rho_list = []
     current_lattice_a = None
@@ -291,14 +376,21 @@ def _parse_analyze_energies(stdout_text, n_equil):
     return np.array(energies[n_equil:])
 
 
-def _spawn_analyze(prm_file):
-    """Launch $ANALYZE as a non-blocking Popen. Returns (proc, tmp_key_path)."""
+def _spawn_analyze(prm_file, arc_path=None):
+    """Launch $ANALYZE as a non-blocking Popen. Returns (proc, tmp_key_path).
+
+    *arc_path* overrides the trajectory file; callers must supply it when
+    running at multiple temperatures (each temperature has its own arc).
+    """
     analyze_cmd = os.environ.get('ANALYZE')
     if not analyze_cmd:
         raise RuntimeError("$ANALYZE environment variable is not set")
 
-    liquid_arc = _config["liquid_arc"]
-    arc_abs = str(Path(liquid_arc).resolve())
+    if arc_path is None:
+        raise RuntimeError(
+            "_spawn_analyze: arc_path must be provided explicitly"
+        )
+    arc_abs = str(Path(arc_path).resolve())
     tmp_key = _make_key_with_prm(prm_file)
     proc = subprocess.Popen(
         [analyze_cmd, arc_abs, '-k', tmp_key, 'E'],
@@ -344,17 +436,22 @@ def _density_jacobian_col(rho_frames, E_plus, E_minus, beta, diff_step):
 # ---------------------------------------------------------------------------
 
 def model_func(params):
-    """Compute residuals for HFE and neat liquid density."""
+    """Compute residuals for HFE and neat liquid density at each temperature.
+
+    Residual vector layout: [hfe_residual, density_residual_T0, density_residual_T1, ...]
+    """
     param_file = _config["param_file"]
     initial_params = _config["initial_params"]
     expt_hfe = _config["expt_hfe"]
-    expt_density = _config["expt_density"]
+    expt_densities = _config["expt_densities"]
     hfe_weight = _config["hfe_weight"]
-    density_weight = _config["density_weight"]
+    density_weights = _config["density_weights"]
+    temperatures = _config["temperatures"]
     n_equil = _config["n_equil"]
 
     Path('result.txt').unlink(missing_ok=True)
 
+    _config["step"] = _config.get("step", 0) + 1
     is_initial = np.array_equal(params, initial_params)
 
     if is_initial:
@@ -390,21 +487,26 @@ def model_func(params):
             raise RuntimeError("result.txt missing 'FEP_001' line for trial point")
         hfe = fe1
 
-    # --- Density: fresh MD at current params ---
+    # --- Density: run MD sequentially at each temperature ---
     use_dyn = _config.get("use_dyn", False)
-    print(f'Running liquid MD ({"continuing from .dyn" if use_dyn else "fresh start"}) ...')
-    _, log_path = _run_liquid_md(current_prm)
-    rho_frames = _parse_liquid_trajectory(log_path, n_equil)
-    _config["rho_frames"] = rho_frames
-    density = rho_frames.mean()
+    rho_frames_list = []
+    densities = []
+    for T in temperatures:
+        log.info(f'Running liquid MD at {T:.1f} K '
+                 f'({"continuing from .dyn" if use_dyn else "fresh start"}) ...')
+        _, log_path = _run_liquid_md(current_prm, temperature=T)
+        rho_frames = _parse_liquid_trajectory(log_path, n_equil)
+        rho_frames_list.append(rho_frames)
+        densities.append(rho_frames.mean())
 
-    print(f'Current params: {params}')
-    print(f'Current HFE: {hfe:.4f} kcal/mol   Density: {density:.5f} g/cm³')
+    _config["rho_frames_list"] = rho_frames_list
 
-    residuals = np.array([
-        hfe_weight * (hfe - expt_hfe),
-        density_weight * (density - expt_density),
-    ])
+    _log_step_table(_config["step"], params, hfe, densities)
+
+    residuals = [hfe_weight * (hfe - expt_hfe)]
+    for rho, rho_tgt, d_weight in zip(densities, expt_densities, density_weights):
+        residuals.append(d_weight * (rho - rho_tgt))
+    residuals = np.array(residuals)
 
     # Decide whether the next MD run should continue from the .dyn file.
     current_cost = float(np.dot(residuals, residuals))
@@ -412,10 +514,10 @@ def model_func(params):
     if current_cost < best_cost:
         _config["best_cost"] = current_cost
         _config["use_dyn"] = True
-        print(f'Cost improved ({current_cost:.6f} < {best_cost:.6f}) → next MD will use .dyn')
+        log.info(f'Cost improved ({current_cost:.6f} < {best_cost:.6f}) → next MD will use .dyn')
     else:
         _config["use_dyn"] = False
-        print(f'Cost did not improve ({current_cost:.6f} >= {best_cost:.6f}) → next MD will start fresh')
+        log.info(f'Cost did not improve ({current_cost:.6f} >= {best_cost:.6f}) → next MD will start fresh')
 
     return residuals
 
@@ -443,24 +545,31 @@ def write_prm(params, fname):
 
 
 def jacobian_fd(params):
-    """Compute Jacobian: row 0 = HFE (FD via autoBAR), row 1 = density (Eq. 4).
+    """Compute Jacobian of shape (1 + n_temps, n_params).
 
-    All $ANALYZE calls for the density Jacobian are spawned in parallel and
-    run concurrently with the autoBAR call for the HFE Jacobian.
-    The trajectory used is from the preceding model_func call (current params).
+    Row 0         = HFE sensitivity (FD via autoBAR FEP).
+    Rows 1..n_temps = density sensitivity at each temperature (Eq. 4 of
+                      Wang et al. 2013, applied to per-temperature trajectories).
+
+    All $ANALYZE calls for the density rows are spawned in parallel across
+    every (param perturbation, temperature) pair and run concurrently with
+    the autoBAR call for the HFE row.
     """
     param_file = _config["param_file"]
     initial_params = _config["initial_params"]
     diff_step = _config["diff_step"]
     hfe_weight = _config["hfe_weight"]
-    density_weight = _config["density_weight"]
-    beta = _config["beta"]
-    rho_frames = _config["rho_frames"]
+    density_weights = _config["density_weights"]
+    beta_list = _config["beta_list"]
+    rho_frames_list = _config["rho_frames_list"]
+    temperatures = _config["temperatures"]
+    liquid_dir = _config["liquid_dir"]
 
+    n_temps = len(temperatures)
     n_params = len(params)
     params = np.atleast_1d(params)
 
-    J = np.zeros((2, n_params))
+    J = np.zeros((1 + n_temps, n_params))
     step = diff_step * np.ones(n_params)
 
     Path('result.txt').unlink(missing_ok=True)
@@ -505,23 +614,30 @@ def jacobian_fd(params):
 
         param_perturb_map[j] = (plus_idx, minus_idx)
 
-    # Spawn all $ANALYZE processes (density Jacobian) in parallel,
-    # then run autoBAR (HFE Jacobian). Both execute concurrently.
-    analyze_jobs = {}   # perturb_idx → (proc, tmp_key)
+    # Spawn all $ANALYZE processes (density Jacobian) in parallel across every
+    # (param perturbation, temperature) pair, then run autoBAR concurrently.
+    # Key: (pidx, temp_i) → (proc, tmp_key_path)
+    analyze_jobs = {}
     try:
         for j in range(n_params):
             for pidx in param_perturb_map[j]:
                 prm_k = param_file + f'_{pidx:02d}'
-                analyze_jobs[pidx] = _spawn_analyze(prm_k)
+                for temp_i, T in enumerate(temperatures):
+                    liquid_base = _config["liquid_base"]
+                    if n_temps > 1:
+                        arc_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.1f}K.arc")
+                    else:
+                        arc_path = os.path.join(liquid_dir, f"{liquid_base}.arc")
+                    analyze_jobs[(pidx, temp_i)] = _spawn_analyze(prm_k, arc_path=arc_path)
 
         _run_autobar()
 
-        E_by_idx = {}
-        for pidx, (proc, tmp_key) in analyze_jobs.items():
-            E_by_idx[pidx] = _collect_analyze(proc, tmp_key)
+        E_by_pidx_temp = {}   # (pidx, temp_i) → energies array
+        for (pidx, temp_i), (proc, tmp_key) in analyze_jobs.items():
+            E_by_pidx_temp[(pidx, temp_i)] = _collect_analyze(proc, tmp_key)
         analyze_jobs.clear()
     finally:
-        for pidx, (proc, tmp_key) in analyze_jobs.items():
+        for pidx_ti, (proc, tmp_key) in analyze_jobs.items():
             try:
                 proc.kill()
             except OSError:
@@ -558,21 +674,26 @@ def jacobian_fd(params):
             r_minus = feps[j * 2 + 2]
         J[0, j] = hfe_weight * (r_plus - r_minus) / (2 * diff_step)
 
-    # --- Density Jacobian (row 1) via Eq. 4 ---
-    for j in range(n_params):
-        plus_idx, minus_idx = param_perturb_map[j]
-        J[1, j] = density_weight * _density_jacobian_col(
-            rho_frames,
-            E_by_idx[plus_idx],
-            E_by_idx[minus_idx],
-            beta,
-            diff_step,
-        )
+    # --- Density Jacobian (rows 1..n_temps) via Eq. 4 ---
+    for temp_i, (d_weight, beta, rho_frames) in enumerate(
+        zip(density_weights, beta_list, rho_frames_list)
+    ):
+        for j in range(n_params):
+            plus_idx, minus_idx = param_perturb_map[j]
+            J[1 + temp_i, j] = d_weight * _density_jacobian_col(
+                rho_frames,
+                E_by_pidx_temp[(plus_idx, temp_i)],
+                E_by_pidx_temp[(minus_idx, temp_i)],
+                beta,
+                diff_step,
+            )
 
     return J
 
 
 def main():
+    _setup_logging()
+
     # Use the object-style API so this works on ruamel.yaml >=0.18,
     # which removed the module-level yaml.load(..., Loader=...) shim.
     yaml_parser = yaml.YAML(typ='safe', pure=True)
@@ -581,16 +702,52 @@ def main():
 
     param_file = settings["parameters"]
     expt_hfe = float(settings["expt_hfe"])
-    expt_density = float(settings["expt_density"])
     hfe_weight = float(settings.get("hfe_weight", 1.0))
-    density_weight = float(settings.get("density_weight", 1.0))
     liquid_dir = settings["liquid_dir"]
-    liquid_key = settings.get("liquid_key", "liquid")
+    # liquid_base: coordinate/trajectory base name inside liquid_dir.
+    # Default "neat_liq" avoids collision with autoBAR's ./liquid/ directory.
+    liquid_base = settings.get("liquid_base", "neat_liq")
+    liquid_key = settings.get("liquid_key", liquid_base)
     n_equil = int(settings.get("n_equil", 200))
     n_production = int(settings["n_production"])
-    temperature = float(settings["temperature"])
     opt_params = settings["opt_params"]
     params_range = settings["params_range"]
+
+    # Multi-temperature support: "temperatures" (list) takes priority over
+    # the single-value "temperature" key for backward compatibility.
+    raw_temps = settings.get("temperatures", None)
+    if raw_temps is not None:
+        temperatures = [float(t) for t in raw_temps]
+    else:
+        temperatures = [float(settings["temperature"])]
+
+    # Experimental densities: "expt_densities" (list) or "expt_density" (scalar).
+    raw_densities = settings.get("expt_densities", None)
+    if raw_densities is not None:
+        expt_densities = [float(d) for d in raw_densities]
+    else:
+        expt_densities = [float(settings["expt_density"])]
+
+    if len(temperatures) != len(expt_densities):
+        sys.exit(
+            f"[Error] temperatures has {len(temperatures)} value(s) but "
+            f"expt_densities has {len(expt_densities)}; they must match."
+        )
+
+    # Density weights: "density_weights" (list) or uniform "density_weight" (scalar).
+    raw_dweights = settings.get("density_weights", None)
+    if raw_dweights is not None:
+        density_weights = [float(w) for w in raw_dweights]
+        if len(density_weights) != len(temperatures):
+            sys.exit(
+                f"[Error] density_weights has {len(density_weights)} value(s) but "
+                f"temperatures has {len(temperatures)}; they must match."
+            )
+    else:
+        single_weight = float(settings.get("density_weight", 1.0))
+        density_weights = [single_weight] * len(temperatures)
+
+    beta_list = [1.0 / (_KB * T) for T in temperatures]
 
     # parmOPT.py lives in <repo>/utils/, so autoBAR.py is one level up.
     autobar_path = str(Path(__file__).resolve().parent.parent / 'autoBAR.py')
@@ -616,8 +773,8 @@ def main():
     # (sigma, epsilon) go through zero sends Tinker into unphysical regimes.
     bad = lb <= 0
     if bad.any():
-        print(
-            f"[Warning] params_range would drive lb <= 0 for indices "
+        log.warning(
+            f"params_range would drive lb <= 0 for indices "
             f"{np.where(bad)[0].tolist()}; clamping to {_MIN_LOWER_BOUND}."
         )
         lb = np.where(bad, _MIN_LOWER_BOUND, lb)
@@ -632,66 +789,66 @@ def main():
         shutil.copy(param_file, snapshot)
 
     diff_step = 0.0001
-    beta = 1.0 / (_KB * temperature)
 
     # Total system mass from xyz + prm (for density conversion)
-    liquid_xyz = str(Path(liquid_dir) / "liquid.xyz")
+    liquid_xyz = str(Path(liquid_dir) / f"{liquid_base}.xyz")
     total_mass = _parse_system_mass(liquid_xyz, param_file)
 
-    # Key file template for liquid MD: liquid_dir/liquid_key.key
+    # Key file template for neat-liquid MD: liquid_dir/<liquid_key>.key
     liquid_key_file = str((Path(liquid_dir) / liquid_key).with_suffix('.key'))
     if not os.path.isfile(liquid_key_file):
         sys.exit(f"[Error] liquid key file not found: {liquid_key_file}")
 
-    # Parse MD run parameters from liquid.sh
-    sh_file = str(Path(liquid_dir) / "liquid.sh")
-    md_dt, md_t_out, md_int_type, md_temperature, md_pressure = _parse_liquid_sh(sh_file)
-
-    liquid_arc = str(Path(liquid_dir) / "liquid.arc")
+    # Parse MD run parameters from the shell script (timestep, write freq,
+    # integrator, pressure). The temperature in the script is ignored — we
+    # use the temperatures list from settings.yaml instead.
+    sh_file = str(Path(liquid_dir) / f"{liquid_base}.sh")
+    md_dt, md_t_out, md_int_type, _, md_pressure = _parse_liquid_sh(sh_file)
 
     # Populate the module-level config dict
     _config.update({
         "param_file": param_file,
         "param_file_snapshot": snapshot,
         "expt_hfe": expt_hfe,
-        "expt_density": expt_density,
+        "expt_densities": expt_densities,
         "hfe_weight": hfe_weight,
-        "density_weight": density_weight,
+        "density_weights": density_weights,
+        "temperatures": temperatures,
+        "beta_list": beta_list,
         "opt_term_idx": opt_term_idx,
         "initial_params": initial_params,
         "autobar_path": autobar_path,
         "diff_step": diff_step,
-        "beta": beta,
         "total_mass": total_mass,
         "liquid_dir": liquid_dir,
+        "liquid_base": liquid_base,
         "liquid_key_file": liquid_key_file,
-        "liquid_arc": liquid_arc,
         "n_equil": n_equil,
         "n_production": n_production,
         "md_dt": md_dt,
         "md_t_out": md_t_out,
         "md_int_type": md_int_type,
-        "md_temperature": md_temperature,
         "md_pressure": md_pressure,
-        "rho_frames": None,
+        "rho_frames_list": None,
         "use_dyn": False,
         "best_cost": np.inf,
+        "step": 0,
     })
 
     steps_per_frame = round(md_t_out * 1000.0 / md_dt)
     total_md_frames = n_equil + n_production
     total_md_steps = total_md_frames * steps_per_frame
 
-    print("\n=== Optimization Settings ===")
-    print('bounds', bounds)
-    print('initial_params', initial_params)
-    print('diff_step', diff_step)
-    print(f'expt_hfe: {expt_hfe} kcal/mol  expt_density: {expt_density} g/cm³')
-    print(f'hfe_weight: {hfe_weight}  density_weight: {density_weight}')
-    print(f'temperature: {temperature} K  beta: {beta:.4f} mol/kcal')
-    print(f'total_mass: {total_mass:.4f} g/mol  liquid_dir: {liquid_dir}')
-    print(f'n_equil: {n_equil}  n_production: {n_production}  '
-          f'total MD steps per call: {total_md_steps}')
+    log.info("=== Optimization Settings ===")
+    log.info(f'bounds {bounds}')
+    log.info(f'initial_params {initial_params}')
+    log.info(f'diff_step {diff_step}')
+    log.info(f'expt_hfe: {expt_hfe} kcal/mol  hfe_weight: {hfe_weight}')
+    for T, rho_tgt, d_weight in zip(temperatures, expt_densities, density_weights):
+        log.info(f'  T={T:.1f} K: expt_density={rho_tgt} kg/m³  density_weight={d_weight}')
+    log.info(f'total_mass: {total_mass:.4f} g/mol  liquid_dir: {liquid_dir}')
+    log.info(f'n_equil: {n_equil}  n_production: {n_production}  '
+             f'total MD steps per call: {total_md_steps}')
 
     # Cleanup covers every perturb_idx the optimizer could ever create this
     # run: the model point (idx=1 on initial, idx=1 reused on trial) plus
@@ -721,11 +878,11 @@ def main():
         xtol=0.0001,
     )
 
-    print("\n=== Optimization Results ===")
-    print("Success:", result.success)
-    print("Message:", result.message)
-    print("Optimal parameters:", result.x)
-    print("Cost (sum of squared residuals):", 2 * result.cost)
+    log.info("=== Optimization Results ===")
+    log.info(f"Success: {result.success}")
+    log.info(f"Message: {result.message}")
+    log.info(f"Optimal parameters: {result.x}")
+    log.info(f"Cost (sum of squared residuals): {2 * result.cost}")
 
 if __name__ == "__main__":
     main()
