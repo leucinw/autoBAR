@@ -301,13 +301,14 @@ autoBAR runs the HFE calculation once per optimizer call. Liquid MD is run seque
 > autoBAR creates `./liquid/` and `./gas/` for the HFE alchemical windows; a conflicting
 > `liquid_dir: liquid` would mix those files with the pure-liquid MD trajectories.
 
-`liquid_dir` must contain files named after `liquid_base` (default `neat_liq`):
+The only file you need to supply in `liquid_dir` is the Tinker coordinate file.
+The key and shell script are auto-generated at startup:
 
-| File | Description |
-|------|-------------|
-| `neat_liq.xyz` | Simulation box Tinker coordinates |
-| `neat_liq.key` (or the name set by `liquid_key`) | Tinker key file |
-| `neat_liq.sh` | Shell script with a `$DYNAMIC neat_liq ...` line — parsed for timestep, write interval, integrator type, and pressure |
+| File | Source | Description |
+|------|--------|-------------|
+| `neat_liq.xyz` | **User-supplied** | Simulation box Tinker coordinates |
+| `neat_liq.key` | Auto-generated (if absent) | Derived from the HFE liquid key template by removing `vdw-annihilate`, `vdw-lambda`, `ele-lambda`, and `ligand` lines; you can also supply your own |
+| `neat_liq.sh` | Auto-generated (always) | NPT run script written from the `md_*` settings in `settings.yaml` |
 
 Example directory after a run:
 ```

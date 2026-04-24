@@ -859,8 +859,17 @@ def main():
 
     diff_step = 0.0001
 
-    # Total system mass from xyz + prm (for density conversion)
+    # Total system mass from xyz + prm (for density conversion).
+    # The xyz is the only file the user must supply in liquid_dir; the .key
+    # and .sh are auto-generated below.
     liquid_xyz = str(Path(liquid_dir) / f"{liquid_base}.xyz")
+    if not os.path.isfile(liquid_xyz):
+        sys.exit(
+            f"[Error] Neat-liquid coordinate file not found: {liquid_xyz}\n"
+            f"  Place the Tinker .xyz file for the neat liquid in '{liquid_dir}/' "
+            f"with the base name '{liquid_base}'.\n"
+            f"  The .key and .sh files are auto-generated — only the .xyz is required."
+        )
     total_mass = _parse_system_mass(liquid_xyz, param_file)
 
     # Key file template for neat-liquid MD: liquid_dir/<liquid_key>.key
