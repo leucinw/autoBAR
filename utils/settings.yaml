@@ -5,14 +5,22 @@ expt_hfe:     -6.0              # experimental hydration free energy (kcal/mol)
 opt_params:   "vdwpair-401-402 3.8 0.05"
 params_range: "0.3 0.02"
 
-# Density target (new)
-expt_density:   0.879           # experimental neat liquid density (g/cm³)
+# Density target
+expt_density:   0.879           # experimental neat liquid density (kg/m³)
 hfe_weight:     1.0             # weight for HFE residual in least-squares
 density_weight: 1.0             # weight for density residual in least-squares
 
-# Liquid MD setup (new)
-liquid_dir:   "./liquid"        # directory containing liquid.xyz, liquid.key, liquid.sh
-liquid_key:   "liquid"          # key file base name (without .key extension)
-temperature:  298.15            # MD temperature (K); must match liquid.sh
+# Liquid MD setup
+liquid_dir:   "./liquid"        # directory containing liquid.xyz (and optionally liquid.key)
+liquid_key:   "liquid"          # neat-liquid key base name (without .key extension)
+# hfe_liquid_key: /path/to/hfe.key  # optional: HFE key used as fallback when liquid_key.key is
+                                     # missing; defaults to <autobar_repo>/dat/liquid.key
+temperature:  298.15            # MD temperature (K)
 n_equil:      200               # frames to discard as equilibration
 n_production: 800               # production frames used for density and Jacobian
+
+# Tinker-GPU NPT MD parameters (liquid.sh is auto-generated from these)
+md_dt:        2.0               # timestep (fs)
+md_t_out:     0.1               # trajectory output interval (ps)
+md_integrator: "4"              # Tinker integrator code (4 = stochastic NPT)
+md_pressure:  1.0               # pressure (atm)
