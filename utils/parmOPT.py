@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 import numpy as np
@@ -120,15 +121,21 @@ def _remove_matching(pattern):
             pass
 
 
-def _run_autobar():
+def _run_autobar(background=False):
     """Invoke ``autoBAR.py auto`` under the current interpreter.
 
-    autoBAR is blocking: by the time it returns, ``result.txt`` either
-    exists (success) or was never written (failure). Raise loudly on
-    either condition instead of polling for hours.
+    When *background* is True the Popen object is returned immediately so the
+    caller can submit other jobs (e.g. neat-liquid MD) in parallel.  The
+    caller must then call ``proc.wait()`` and check the return code.
+
+    When *background* is False (default) the call blocks until autoBAR
+    finishes and raises on failure or missing result.txt.
     """
     autobar_path = _config["autobar_path"]
-    rc = subprocess.run([sys.executable, autobar_path, 'auto']).returncode
+    proc = subprocess.Popen([sys.executable, autobar_path, 'auto'])
+    if background:
+        return proc
+    rc = proc.wait()
     if rc != 0:
         raise RuntimeError(
             f"autoBAR.py exited with code {rc}; aborting optimization"
@@ -142,6 +149,80 @@ def _run_autobar():
 def _restore_param_file():
     """Reset the in-tree parameter file to its pristine pre-opt snapshot."""
     shutil.copy(_config["param_file_snapshot"], _config["param_file"])
+
+
+def _update_shared_key(current_prm):
+    """Rewrite the shared neat-liquid key file with *current_prm* as PARAMETERS.
+
+    All per-temperature .sh files reference the same key base name, so only
+    one key file needs updating per optimizer step.
+    """
+    liquid_key_file = _config["liquid_key_file"]
+    with open(liquid_key_file) as f:
+        contents = f.read()
+    prm_abs = str(Path(current_prm).resolve())
+    contents = re.sub(
+        r'(?im)^PARAMETERS\s+.*$',
+        f'PARAMETERS   {prm_abs}',
+        contents,
+    )
+    with open(liquid_key_file, 'w') as f:
+        f.write(contents)
+
+
+def _submit_neat_liquid_to_cluster():
+    """Submit per-temperature neat-liquid MD .sh files to the GPU cluster."""
+    liquid_dir = _config["liquid_dir"]
+    sh_names = _config["neat_liquid_sh_names"]
+    submitexe = _config["submitexe"]
+    nodes = _config.get("nodes", [])
+
+    nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
+    cmd = (f"python {submitexe} -x {' '.join(sh_names)}"
+           f" -t GPU{nodes_arg} -p {liquid_dir}")
+    log.info("Submitting neat liquid MD to cluster: %s", cmd)
+    rc = subprocess.run(cmd, shell=True, cwd=liquid_dir).returncode
+    if rc != 0:
+        log.warning("submitTinker for neat liquid MD exited with code %d", rc)
+
+
+def _count_log_frames(log_path):
+    """Return the number of completed MD frames recorded in a Tinker log file."""
+    if not os.path.isfile(log_path):
+        return 0
+    count = 0
+    try:
+        with open(log_path) as f:
+            for line in f:
+                if 'Frame Number' in line:
+                    count += 1
+    except OSError:
+        pass
+    return count
+
+
+def _wait_for_neat_liquid_mds():
+    """Block until every per-temperature neat-liquid MD log has enough frames."""
+    liquid_dir    = _config["liquid_dir"]
+    liquid_base   = _config["liquid_base"]
+    temperatures  = _config["temperatures"]
+    n_equil       = _config["n_equil"]
+    n_production  = _config["n_production"]
+    check_interval = _config.get("check_interval", 60)
+    n_total = n_equil + n_production
+
+    while True:
+        pending = []
+        for T in temperatures:
+            log_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.1f}K-md.log")
+            n_done = _count_log_frames(log_path)
+            if n_done < n_total:
+                pending.append(f"T={T:.1f}K ({n_done}/{n_total} frames)")
+        if not pending:
+            log.info("All neat liquid MD jobs completed.")
+            break
+        log.info("Waiting for neat liquid MD: %s", ", ".join(pending))
+        time.sleep(check_interval)
 
 
 # ---------------------------------------------------------------------------
@@ -195,43 +276,60 @@ def _parse_system_mass(xyz_file, prm_file):
 
 def _write_liquid_sh(liquid_dir, liquid_base, liquid_key,
                      n_equil, n_production, md_dt, md_t_out,
-                     md_int_type, temperatures, md_pressure):
-    """Write <liquid_base>.sh — Tinker-GPU NPT run script for reference.
+                     md_int_type, temperatures, md_pressure, tinkerenv):
+    """Write one .sh per temperature for neat-liquid NPT MD.
 
-    This file is auto-generated from settings.yaml and is not executed by
-    parmOPT.py directly (MD is driven via $DYNAMIC in _run_liquid_md).
-    For multi-temperature runs one $DYNAMIC line per temperature is written.
+    Each temperature gets its own coordinate symlink
+    ({liquid_base}_{T}K.xyz → {liquid_base}.xyz) and run script, but all
+    share the same key file ({liquid_key}.key) so that parmOPT only needs to
+    update one key file per optimizer step.  Scripts are submitted to separate
+    GPU cards so temperatures run in parallel.
+
+    Returns a list of .sh basenames written (one per temperature).
     """
     steps_per_frame = round(md_t_out * 1000.0 / md_dt)
     total_steps = (n_equil + n_production) * steps_per_frame
+    main_xyz = str(Path(liquid_dir) / f"{liquid_base}.xyz")
 
-    sh_path = str(Path(liquid_dir) / f"{liquid_base}.sh")
-    lines = [
-        "#!/bin/bash",
-        "# Neat-liquid NPT MD — auto-generated by parmOPT.py",
-        "# Edit settings.yaml to change these parameters.",
-        "#",
-        f"# timestep     : {md_dt} fs",
-        f"# output freq  : {md_t_out} ps  ({steps_per_frame} steps/frame)",
-        f"# integrator   : {md_int_type}",
-        f"# pressure      : {md_pressure} atm",
-        f"# n_equil       : {n_equil} frames  ({n_equil * steps_per_frame * md_dt / 1e6:.4g} ns)",
-        f"# n_production  : {n_production} frames  ({n_production * steps_per_frame * md_dt / 1e6:.4g} ns)",
-        f"# total steps   : {total_steps}",
-        "",
-    ]
+    sh_names = []
     for T in temperatures:
-        log_name = f"{liquid_base}_{T:.1f}K-md.log" if len(temperatures) > 1 else f"{liquid_base}-md.log"
-        lines.append(
-            f"$DYNAMIC {liquid_base} -k {liquid_key}"
+        tag = f"_{T:.1f}K"
+        xyz_name = f"{liquid_base}{tag}.xyz"
+        sh_name  = f"{liquid_base}{tag}.sh"
+        log_name = f"{liquid_base}{tag}-md.log"
+        xyz_path = str(Path(liquid_dir) / xyz_name)
+        sh_path  = str(Path(liquid_dir) / sh_name)
+
+        # Symlink so each temperature has its own coordinate file; Tinker
+        # then writes {xyz_name}.arc which keeps arc files separate on parallel runs.
+        if not os.path.islink(xyz_path) and not os.path.isfile(xyz_path):
+            os.symlink(main_xyz, xyz_path)
+
+        lines = [
+            "#!/bin/bash",
+            "# Neat-liquid NPT MD — auto-generated by parmOPT.py",
+            "# Edit settings.yaml to change these parameters.",
+            "#",
+            f"# timestep     : {md_dt} fs",
+            f"# output freq  : {md_t_out} ps  ({steps_per_frame} steps/frame)",
+            f"# integrator   : {md_int_type}",
+            f"# temperature  : {T} K",
+            f"# pressure     : {md_pressure} atm",
+            f"# n_equil      : {n_equil} frames  ({n_equil * steps_per_frame * md_dt / 1e6:.4g} ns)",
+            f"# n_production : {n_production} frames  ({n_production * steps_per_frame * md_dt / 1e6:.4g} ns)",
+            f"# total steps  : {total_steps}",
+            "",
+            f"$DYNAMIC9 {xyz_name} -k {liquid_key}"
             f" {total_steps} {md_dt} {md_t_out}"
             f" {md_int_type} {T} {md_pressure}"
-            f" > {log_name}"
-        )
-    lines.append("")
-    with open(sh_path, 'w') as f:
-        f.write("\n".join(lines))
-    return sh_path
+            f" > {log_name}",
+            "",
+        ]
+        with open(sh_path, 'w') as f:
+            f.write(f'source {tinkerenv}\n')
+            f.write("\n".join(lines))
+        sh_names.append(sh_name)
+    return sh_names
 
 
 def _run_liquid_md(prm_file, temperature=None):
@@ -245,9 +343,9 @@ def _run_liquid_md(prm_file, temperature=None):
     for multi-temperature runs we rename those files immediately after each run
     so each temperature keeps its own checkpoint.
     """
-    dynamic_cmd = os.environ.get('DYNAMIC')
+    dynamic_cmd = os.environ.get('DYNAMIC9')
     if not dynamic_cmd:
-        raise RuntimeError("$DYNAMIC environment variable is not set")
+        raise RuntimeError("$DYNAMIC9 environment variable is not set")
 
     liquid_dir = _config["liquid_dir"]
     liquid_base = _config["liquid_base"]
@@ -534,6 +632,8 @@ def model_func(params):
     density_weights = _config["density_weights"]
     temperatures = _config["temperatures"]
     n_equil = _config["n_equil"]
+    liquid_dir = _config["liquid_dir"]
+    liquid_base = _config["liquid_base"]
 
     Path('result.txt').unlink(missing_ok=True)
 
@@ -551,9 +651,22 @@ def model_func(params):
         write_prm(params, param_file + "_01")
         current_prm = param_file + "_01"
 
-    _run_autobar()
+    # --- Submit HFE (autoBAR) and neat liquid MD in parallel ---
+    # Update the shared key file with the current parameter file, then
+    # launch autoBAR 'auto' in the background so we can immediately submit
+    # the neat-liquid MD jobs to the GPU cluster without waiting for HFE.
+    _update_shared_key(current_prm)
+    autobar_proc = _run_autobar(background=True)
+    _submit_neat_liquid_to_cluster()
 
-    # --- HFE ---
+    # --- Wait for HFE ---
+    rc = autobar_proc.wait()
+    if rc != 0:
+        raise RuntimeError(f"autoBAR.py exited with code {rc}; aborting optimization")
+    if not os.path.isfile('result.txt'):
+        raise RuntimeError("autoBAR.py returned 0 but result.txt was not produced")
+
+    # --- Parse HFE result ---
     with open('result.txt') as f:
         lines = f.readlines()
 
@@ -573,14 +686,12 @@ def model_func(params):
             raise RuntimeError("result.txt missing 'FEP_001' line for trial point")
         hfe = fe1
 
-    # --- Density: run MD sequentially at each temperature ---
-    use_dyn = _config.get("use_dyn", False)
+    # --- Wait for neat liquid MD and parse density ---
+    _wait_for_neat_liquid_mds()
     rho_frames_list = []
     densities = []
     for T in temperatures:
-        log.info(f'Running liquid MD at {T:.1f} K '
-                 f'({"continuing from .dyn" if use_dyn else "fresh start"}) ...')
-        _, log_path = _run_liquid_md(current_prm, temperature=T)
+        log_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.1f}K-md.log")
         rho_frames = _parse_liquid_trajectory(log_path, n_equil)
         rho_frames_list.append(rho_frames)
         densities.append(rho_frames.mean())
@@ -594,16 +705,13 @@ def model_func(params):
         residuals.append(d_weight * (rho - rho_tgt))
     residuals = np.array(residuals)
 
-    # Decide whether the next MD run should continue from the .dyn file.
     current_cost = float(np.dot(residuals, residuals))
     best_cost = _config.get("best_cost", np.inf)
     if current_cost < best_cost:
         _config["best_cost"] = current_cost
-        _config["use_dyn"] = True
-        log.info(f'Cost improved ({current_cost:.6f} < {best_cost:.6f}) → next MD will use .dyn')
+        log.info(f'Cost improved ({current_cost:.6f} < {best_cost:.6f})')
     else:
-        _config["use_dyn"] = False
-        log.info(f'Cost did not improve ({current_cost:.6f} >= {best_cost:.6f}) → next MD will start fresh')
+        log.info(f'Cost did not improve ({current_cost:.6f} >= {best_cost:.6f})')
 
     return residuals
 
@@ -711,10 +819,7 @@ def jacobian_fd(params):
                 prm_k = param_file + f'_{pidx:02d}'
                 for temp_i, T in enumerate(temperatures):
                     liquid_base = _config["liquid_base"]
-                    if n_temps > 1:
-                        arc_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.1f}K.arc")
-                    else:
-                        arc_path = os.path.join(liquid_dir, f"{liquid_base}.arc")
+                    arc_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.1f}K.arc")
                     analyze_jobs[(pidx, temp_i)] = _spawn_analyze(prm_k, arc_path=arc_path)
 
         _run_autobar()
@@ -852,6 +957,10 @@ def main():
 
     # parmOPT.py lives in <repo>/utils/, so autoBAR.py is one level up.
     autobar_path = str(Path(__file__).resolve().parent.parent / 'autoBAR.py')
+    submitexe    = str(Path(__file__).resolve().parent / 'submitTinker.py')
+    tinkerenv    = str(Path(__file__).resolve().parent.parent / 'dat' / 'tinker.env')
+    nodes        = settings.get("node_list") or []
+    check_interval = float(settings.get("checking_time", 60))
 
     # Parse each opt_params entry: "term_key p1 p2 ..." with a matching params_range "r1 r2 ..."
     # A range of 0 for a parameter marks it as fixed: excluded from the optimizer but
@@ -972,12 +1081,13 @@ def main():
     n_equil = round(equil_time * 1000.0 / md_t_out)
     n_production = round(production_time * 1000.0 / md_t_out)
 
-    sh_path = _write_liquid_sh(
+    sh_names = _write_liquid_sh(
         liquid_dir, liquid_base, liquid_key,
         n_equil, n_production, md_dt, md_t_out,
-        md_int_type, temperatures, md_pressure,
+        md_int_type, temperatures, md_pressure, tinkerenv,
     )
-    log.info(f"Wrote liquid MD script: {sh_path}")
+    for sh_name in sh_names:
+        log.info("Wrote liquid MD script: %s", sh_name)
 
     # Populate the module-level config dict
     _config.update({
@@ -1004,9 +1114,13 @@ def main():
         "md_int_type": md_int_type,
         "md_pressure": md_pressure,
         "rho_frames_list": None,
-        "use_dyn": False,
         "best_cost": np.inf,
         "step": 0,
+        "tinkerenv": tinkerenv,
+        "submitexe": submitexe,
+        "nodes": nodes,
+        "check_interval": check_interval,
+        "neat_liquid_sh_names": sh_names,
     })
 
     steps_per_frame = round(md_t_out * 1000.0 / md_dt)

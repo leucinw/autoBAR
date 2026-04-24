@@ -298,7 +298,7 @@ density_weights: [1.0,    1.0,    1.0]      # optional per-T weights; replaces d
 
 **Weight normalization:** each `density_weight` is divided by the number of temperatures internally, so the total density contribution to the cost is the same whether you fit at one temperature or ten. The user-specified weights control the *relative* importance of each temperature; the *aggregate* HFE/density balance is unchanged. The effective weights are printed to `parmOPT.log` at startup.
 
-autoBAR runs the HFE calculation once per optimizer call. Liquid MD is run sequentially for each temperature, producing temperature-tagged arc files (`neat_liq_298.2K.arc`, etc.) so that dyn-file checkpointing and parallel `$ANALYZE` calls work correctly across all temperatures.
+autoBAR runs the HFE calculation once per optimizer call. Neat-liquid MD jobs are submitted to the GPU cluster in parallel with the HFE run: each temperature gets its own coordinate symlink, run script, and GPU card, so all temperatures run simultaneously. parmOPT waits for the HFE job and all neat-liquid MD jobs to finish before moving to the next optimizer step. The resulting temperature-tagged arc files (`neat_liq_298.2K.arc`, etc.) are reused by the parallel `$ANALYZE` calls in the Jacobian computation.
 
 ### Optimizing multiple parameter groups
 
@@ -347,31 +347,28 @@ Fixed parameters are annotated as `(fixed)` in each step's log line in `parmOPT.
 > `liquid_dir: liquid` would mix those files with the pure-liquid MD trajectories.
 
 The only file you need to supply in `liquid_dir` is the Tinker coordinate file.
-The key and shell script are auto-generated at startup:
+The key and per-temperature shell scripts are auto-generated at startup:
 
 | File | Source | Description |
 |------|--------|-------------|
 | `neat_liq.xyz` | **User-supplied** | Simulation box Tinker coordinates |
-| `neat_liq.key` | Auto-generated (if absent) | Derived from the HFE liquid key template by removing `vdw-annihilate`, `vdw-lambda`, `ele-lambda`, and `ligand` lines; you can also supply your own |
-| `neat_liq.sh` | Auto-generated (always) | NPT run script written from the `md_*` settings in `settings.yaml` |
+| `neat_liq.key` | Auto-generated (if absent) | Derived from the HFE liquid key template by removing `vdw-annihilate`, `vdw-lambda`, `ele-lambda`, and `ligand` lines; shared by all temperatures |
+| `neat_liq_{T}K.xyz` | Auto-generated (symlink) | Per-temperature symlink → `neat_liq.xyz`; Tinker writes `neat_liq_{T}K.arc` so parallel GPU runs don't overwrite each other |
+| `neat_liq_{T}K.sh` | Auto-generated (always) | Per-temperature NPT run script (sources `dat/tinker.env`, calls `$DYNAMIC9`); each is submitted to a separate GPU card |
 
-Example directory after a run:
+Example directory after a multi-temperature run at 278 K and 298 K:
 ```
 neat_liquid/
-├── neat_liq.xyz
-├── neat_liq.key
-├── neat_liq.sh
-├── neat_liq.arc          # trajectory (single temperature)
-└── neat_liq.dyn          # Tinker checkpoint for dyn-file reuse
-```
-
-For multi-temperature runs the arc and dyn files are tagged by temperature:
-```
-neat_liquid/
-├── neat_liq_278.2K.arc
-├── neat_liq_278.2K.dyn
-├── neat_liq_298.2K.arc
-└── neat_liq_298.2K.dyn
+├── neat_liq.xyz               # user-supplied
+├── neat_liq.key               # shared key file (PARAMETERS updated each opt step)
+├── neat_liq_278.2K.xyz        # symlink → neat_liq.xyz
+├── neat_liq_278.2K.sh         # run script for 278.2 K
+├── neat_liq_278.2K-md.log     # MD log
+├── neat_liq_278.2K.arc        # trajectory
+├── neat_liq_298.2K.xyz        # symlink → neat_liq.xyz
+├── neat_liq_298.2K.sh         # run script for 298.2 K
+├── neat_liq_298.2K-md.log     # MD log
+└── neat_liq_298.2K.arc        # trajectory
 ```
 
 ## Recommended Minimal Settings

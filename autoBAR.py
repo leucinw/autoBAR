@@ -558,8 +558,9 @@ if __name__ == "__main__":
   # liquid phase specific settings
   global phases, liquidkeylines
   phases = ['liquid']
-  if 'liquid_key' in FEsimsettings:
-    liquidkey = FEsimsettings['liquid_key']
+  _lk = FEsimsettings.get('liquid_key')
+  if _lk and os.path.isfile(_lk):
+    liquidkey = _lk
     print(YELLOW + f"[Warning] You are responsible for your {liquidkey}" + ENDC)
   else:
     liquidkey = os.path.join(rootdir, "dat", "liquid.key")
