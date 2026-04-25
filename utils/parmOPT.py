@@ -563,6 +563,15 @@ def _parse_liquid_trajectory(log_file, n_equil):
     rho_arr = np.array(rho_list[n_equil:])
     if len(rho_arr) == 0:
         raise RuntimeError("No trajectory frames remaining after equilibration cut")
+    n_production = _config["n_production"]
+    if len(rho_arr) != n_production:
+        raise RuntimeError(
+            f"{log_file}: expected {n_production} production density frames "
+            f"(n_equil={n_equil}), got {len(rho_arr)} "
+            f"(total parsed={len(rho_list)}). "
+            f"Check that 'Frame Number' appears after 'Current Potential' and "
+            f"'Lattice Lengths' in the Tinker9 log."
+        )
     return rho_arr
 
 
