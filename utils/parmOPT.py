@@ -978,6 +978,7 @@ def jacobian_fd(params):
         prod_arc = os.path.join(liquid_dir, f"{liquid_base}{tag}-prod.arc")
         log.info("Trimming production arc for T=%.1fK (%d equil frames dropped)", T, n_equil)
         _trim_arc_to_production(full_arc, prod_arc, n_equil)
+        Path(full_arc).unlink(missing_ok=True)
 
     # --- Write analyze .sh files and submit to cluster, then run autoBAR ---
     # Key: (pidx, temp_i) → log_path
