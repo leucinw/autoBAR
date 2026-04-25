@@ -37,29 +37,48 @@ def _log_step_table(step, params, hfe, densities):
     expt_hfe = _config["expt_hfe"]
     expt_densities = _config["expt_densities"]
     temperatures = _config["temperatures"]
+    hfe_weight = _config["hfe_weight"]
+    density_weights = _config["density_weights"]
 
-    col = (24, 12, 12, 12)   # column widths: property, target, current, diff
+    col = (24, 12, 12, 12, 16)   # property, target, current, diff, weighted_residual
     hdr = (f"{'Property':<{col[0]}}"
            f"{'Target':>{col[1]}}"
            f"{'Current':>{col[2]}}"
-           f"{'Diff':>{col[3]}}")
+           f"{'Diff':>{col[3]}}"
+           f"{'WtResidual':>{col[4]}}")
     sep = "-" * sum(col)
 
     rows = []
+    hfe_diff = hfe - expt_hfe
+    hfe_wt_res = hfe_weight * hfe_diff
     rows.append(
         f"{'HFE (kcal/mol)':<{col[0]}}"
         f"{expt_hfe:>{col[1]}.4f}"
         f"{hfe:>{col[2]}.4f}"
-        f"{hfe - expt_hfe:>{col[3]+1}.4f}"
+        f"{hfe_diff:>{col[3]+1}.4f}"
+        f"{hfe_wt_res:>{col[4]}.4f}"
     )
-    for T, rho, rho_tgt in zip(temperatures, densities, expt_densities):
+    wt_res_list = [hfe_wt_res]
+    for T, rho, rho_tgt, d_weight in zip(temperatures, densities, expt_densities, density_weights):
         label = f"Density@{T:.1f}K (kg/m³)"
+        diff = rho - rho_tgt
+        wt_res = d_weight * diff
+        wt_res_list.append(wt_res)
         rows.append(
             f"{label:<{col[0]}}"
             f"{rho_tgt:>{col[1]}.3f}"
             f"{rho:>{col[2]}.3f}"
-            f"{rho - rho_tgt:>{col[3]+1}.3f}"
+            f"{diff:>{col[3]+1}.3f}"
+            f"{wt_res:>{col[4]}.4f}"
         )
+    sum_wt_res = sum(wt_res_list)
+    sum_row = (
+        f"{'Sum':<{col[0]}}"
+        f"{'':>{col[1]}}"
+        f"{'':>{col[2]}}"
+        f"{'':>{col[3]+1}}"
+        f"{sum_wt_res:>{col[4]}.4f}"
+    )
 
     opt_entries = _config["opt_entries"]
     param_parts = []
@@ -73,6 +92,8 @@ def _log_step_table(step, params, hfe, densities):
     log.info(sep)
     for row in rows:
         log.info(row)
+    log.info(sep)
+    log.info(sum_row)
     log.info(sep)
 
 
