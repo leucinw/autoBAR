@@ -314,7 +314,7 @@ def build_commands(jobshs, jobcmds, paths):
                 f"python {script} > {stem}.log 2>err"
             )
         elif script.endswith(".sh"):
-            commands.append(f"cd {workdir}; sh {script}")
+            commands.append(f"cd {workdir}; bash {script}")
         else:
             sys.exit(f"Error: unsupported script type '{script}' (must be .sh or .py)")
 
