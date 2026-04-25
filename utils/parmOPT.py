@@ -792,10 +792,11 @@ def model_func(params):
         write_prm(params, param_file)
         current_prm = param_file
     else:
-        _remove_matching(f'*/{param_file}_01')
-        Path(f'{param_file}_01').unlink(missing_ok=True)
-        _remove_matching('*/*e110*')
-        _remove_matching('*/FEP_01')
+        for i in range(1, 2 * len(params) + 2):
+            _remove_matching(f'*/{param_file}_{i:02d}')
+            Path(f'{param_file}_{i:02d}').unlink(missing_ok=True)
+            _remove_matching(f'*/*e{100 + i * 10}*')
+            _remove_matching(f'*/FEP_{i:02d}')
         write_prm(params, param_file + "_01")
         current_prm = param_file + "_01"
 
