@@ -244,17 +244,19 @@ def dynamic():
     phasedir = os.path.join(homedir, phase)
     os.chdir(phasedir)
     if phase == 'gas' and gasshs:
-      nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
-      shstr = f"python {submitexe} -x {' '.join(gasshs)} -t CPU{nodes_arg} -n 4 -p {phasedir}"
-      print(GREEN + ' ' + shstr + ENDC)
-      rc = subprocess.run(shstr, shell=True).returncode
+      cmd_args = ['python', submitexe, '-x'] + gasshs + ['-t', 'CPU']
+      if nodes: cmd_args.extend(['-nodes'] + nodes)
+      cmd_args.extend(['-n', '4', '-p', phasedir])
+      print(GREEN + ' ' + ' '.join(cmd_args) + ENDC)
+      rc = subprocess.run(cmd_args).returncode
       if rc != 0:
         print(RED + f"[Warning] gas submitTinker exited with code {rc}; some jobs may not have been dispatched" + ENDC)
     if phase == 'liquid' and liquidshs:
-      nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
-      shstr = f"python {submitexe} -x {' '.join(liquidshs)} -t GPU{nodes_arg} -p {phasedir}"
-      print(GREEN + ' ' + shstr + ENDC)
-      rc = subprocess.run(shstr, shell=True).returncode
+      cmd_args = ['python', submitexe, '-x'] + liquidshs + ['-t', 'GPU']
+      if nodes: cmd_args.extend(['-nodes'] + nodes)
+      cmd_args.extend(['-p', phasedir])
+      print(GREEN + ' ' + ' '.join(cmd_args) + ENDC)
+      rc = subprocess.run(cmd_args).returncode
       if rc != 0:
         print(RED + f"[Warning] liquid submitTinker exited with code {rc}; some jobs may not have been dispatched" + ENDC)
   return
@@ -397,15 +399,15 @@ def bar():
     phasedir = os.path.join(homedir, phase)
     os.chdir(phasedir)
     if phase == 'gas' and gasshs:
-      nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
-      cmd = f"python {submitexe} -x {' '.join([x[0] for x in gasshs])} -t CPU -n 4 -p {' '.join([x[1] for x in gasshs])}{nodes_arg}"
-      rc = subprocess.run(cmd, shell=True).returncode
+      cmd_args = ['python', submitexe, '-x'] + [x[0] for x in gasshs] + ['-t', 'CPU', '-n', '4', '-p'] + [x[1] for x in gasshs]
+      if nodes: cmd_args.extend(['-nodes'] + nodes)
+      rc = subprocess.run(cmd_args).returncode
       if rc != 0:
         print(RED + f"[Warning] gas BAR submitTinker exited with code {rc}; some jobs may not have been dispatched" + ENDC)
     if phase == 'liquid' and liquidshs:
-      nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
-      cmd = f"python {submitexe} -x {' '.join([x[0] for x in liquidshs])} -t GPU -p {' '.join([x[1] for x in liquidshs])}{nodes_arg}"
-      rc = subprocess.run(cmd, shell=True).returncode
+      cmd_args = ['python', submitexe, '-x'] + [x[0] for x in liquidshs] + ['-t', 'GPU', '-p'] + [x[1] for x in liquidshs]
+      if nodes: cmd_args.extend(['-nodes'] + nodes)
+      rc = subprocess.run(cmd_args).returncode
       if rc != 0:
         print(RED + f"[Warning] liquid BAR submitTinker exited with code {rc}; some jobs may not have been dispatched" + ENDC)
   return

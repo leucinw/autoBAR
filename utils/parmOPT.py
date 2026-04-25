@@ -276,11 +276,12 @@ def _submit_neat_liquid_to_cluster(is_initial=False):
         log.info("All neat liquid MD trajectories already complete; skipping submission.")
         return
 
-    nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
-    cmd = (f"python {submitexe} -x {' '.join(to_submit)}"
-           f" -t GPU{nodes_arg} -p {liquid_dir}")
-    log.info("Submitting neat liquid MD to cluster: %s", cmd)
-    rc = subprocess.run(cmd, shell=True, cwd=liquid_dir).returncode
+    cmd_args = ['python', submitexe, '-x'] + to_submit + ['-t', 'GPU']
+    if nodes:
+        cmd_args.extend(['-nodes'] + nodes)
+    cmd_args.extend(['-p', liquid_dir])
+    log.info("Submitting neat liquid MD to cluster: %s", " ".join(cmd_args))
+    rc = subprocess.run(cmd_args, cwd=liquid_dir).returncode
     if rc != 0:
         log.warning("submitTinker for neat liquid MD exited with code %d", rc)
 
@@ -700,11 +701,12 @@ def _submit_analyze_to_cluster(sh_names):
     liquid_dir = _config["liquid_dir"]
     submitexe  = _config["submitexe"]
     nodes      = _config.get("nodes", [])
-    nodes_arg  = f" -nodes {' '.join(nodes)}" if nodes else ""
-    cmd = (f"python {submitexe} -x {' '.join(sh_names)}"
-           f" -t GPU{nodes_arg} -p {liquid_dir}")
-    log.info("Submitting analyze jobs to cluster: %s", cmd)
-    rc = subprocess.run(cmd, shell=True, cwd=liquid_dir).returncode
+    cmd_args = ['python', submitexe, '-x'] + sh_names + ['-t', 'GPU']
+    if nodes:
+        cmd_args.extend(['-nodes'] + nodes)
+    cmd_args.extend(['-p', liquid_dir])
+    log.info("Submitting analyze jobs to cluster: %s", " ".join(cmd_args))
+    rc = subprocess.run(cmd_args, cwd=liquid_dir).returncode
     if rc != 0:
         log.warning("submitTinker for analyze exited with code %d", rc)
 
