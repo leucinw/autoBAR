@@ -232,7 +232,7 @@ def _submit_neat_liquid_to_cluster(is_initial=False):
         tag      = f"_{T:.0f}K"
         arc_path = os.path.join(liquid_dir, f"{liquid_base}{tag}.arc")
         dyn_path = os.path.join(liquid_dir, f"{liquid_base}{tag}.dyn")
-        log_name = f"{liquid_base}{tag}-md.log"
+        log_name = f"{liquid_base}{tag}.log"
 
         if not is_initial:
             # Non-initial step: clear stale arc+dyn so Tinker starts fresh
@@ -395,7 +395,7 @@ def _write_liquid_sh(liquid_dir, liquid_base, liquid_key,
         xyz_name = f"{liquid_base}{tag}.xyz"
         key_name = f"{liquid_base}{tag}.key"
         sh_name  = f"{liquid_base}{tag}.sh"
-        log_name = f"{liquid_base}{tag}-md.log"
+        log_name = f"{liquid_base}{tag}.log"
         xyz_path = str(Path(liquid_dir) / xyz_name)
         key_path = str(Path(liquid_dir) / key_name)
         sh_path  = str(Path(liquid_dir) / sh_name)
@@ -475,7 +475,7 @@ def _run_liquid_md(prm_file, temperature=None):
         tag = f"_{temperature:.0f}K"
         arc_path = os.path.join(liquid_dir, f"{liquid_base}{tag}.arc")
         dyn_tagged = os.path.join(liquid_dir, f"{liquid_base}{tag}.dyn")
-        log_path = os.path.join(liquid_dir, f"{liquid_base}{tag}-md.log")
+        log_path = os.path.join(liquid_dir, f"{liquid_base}{tag}.log")
         # Restore per-temperature .dyn so Tinker can continue from it, or
         # remove it to force a fresh start.
         if _config.get("use_dyn", False) and os.path.isfile(dyn_tagged):
@@ -485,7 +485,7 @@ def _run_liquid_md(prm_file, temperature=None):
     else:
         arc_path = arc_tinker
         dyn_tagged = dyn_tinker
-        log_path = os.path.join(liquid_dir, f"{liquid_base}-md.log")
+        log_path = os.path.join(liquid_dir, f"{liquid_base}.log")
         if not _config.get("use_dyn", False):
             Path(dyn_tinker).unlink(missing_ok=True)
 
@@ -839,7 +839,7 @@ def model_func(params):
     rho_frames_list = []
     densities = []
     for T in temperatures:
-        log_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.0f}K-md.log")
+        log_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.0f}K.log")
         rho_frames = _parse_liquid_trajectory(log_path, n_equil)
         rho_frames_list.append(rho_frames)
         densities.append(rho_frames.mean())
