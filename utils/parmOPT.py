@@ -618,79 +618,119 @@ def _derive_liquid_key(src_key, dest_key):
         f.writelines(cleaned)
 
 
-def _make_key_with_prm(prm_file, output_dir=None):
-    """Create a temp key file from liquid_key_file with PARAMETERS replaced."""
-    liquid_key_file = _config["liquid_key_file"]
-    with open(liquid_key_file) as f:
-        contents = f.read()
+def _trim_arc_to_production(full_arc, prod_arc, n_equil):
+    """Write a production-only arc by dropping the first n_equil frames.
+
+    For NPT trajectories the per-frame stride is n_atoms+2 (header + box + coords);
+    for NVT it is n_atoms+1.  Frames are identified by counting lines.
+    """
+    if n_equil == 0:
+        if full_arc != prod_arc:
+            shutil.copy(full_arc, prod_arc)
+        return
+    with open(full_arc, 'rb') as f:
+        first = f.readline().split()
+        if not first:
+            raise RuntimeError(f"Empty arc file: {full_arc}")
+        n_atoms = int(first[0])
+        second = f.readline().split()
+        stride = (n_atoms + 1) if second and second[0] == b'1' else (n_atoms + 2)
+    skip = n_equil * stride
+    with open(full_arc, 'rb') as f_in, open(prod_arc, 'wb') as f_out:
+        for i, line in enumerate(f_in):
+            if i >= skip:
+                f_out.write(line)
+
+
+def _write_analyze_sh(prm_file, pidx, temperature):
+    """Write a per-(prm, temperature) analyze .sh and its named key file.
+
+    Returns (sh_name, log_path).  Both files land in liquid_dir so that
+    submitTinker.py can submit the script with -p liquid_dir.
+    """
+    liquid_dir       = _config["liquid_dir"]
+    liquid_base      = _config["liquid_base"]
+    liquid_key_file  = _config["liquid_key_file"]
+    tinkerenv        = _config["tinkerenv"]
+
+    tag      = f"_{temperature:.0f}K"
+    label    = f"{liquid_base}{tag}-prm{pidx:02d}"
+    prod_arc = f"{liquid_base}{tag}-prod.arc"
+    key_name = f"{label}.key"
+    sh_name  = f"{label}-analyze.sh"
+    log_name = f"{label}-analyze.log"
+
+    # Named key file with PARAMETERS pointing to this perturbation's prm
+    with open(liquid_key_file) as fh:
+        key_contents = fh.read()
     prm_abs = str(Path(prm_file).resolve())
-    contents = re.sub(
+    key_contents = re.sub(
         r'(?im)^PARAMETERS\s+.*$',
         f'PARAMETERS   {prm_abs}',
-        contents
+        key_contents,
     )
-    tmp = tempfile.NamedTemporaryFile(
-        mode='w', suffix='.key', dir=output_dir, delete=False
-    )
-    tmp.write(contents)
-    tmp.close()
-    return tmp.name
+    with open(os.path.join(liquid_dir, key_name), 'w') as fh:
+        fh.write(key_contents)
+
+    lines = [
+        "#!/bin/bash",
+        f"source {tinkerenv}",
+        f"$ANALYZE9 {prod_arc} -k {key_name} E > {log_name}",
+        "",
+    ]
+    with open(os.path.join(liquid_dir, sh_name), 'w') as fh:
+        fh.write("\n".join(lines))
+
+    return sh_name, os.path.join(liquid_dir, log_name)
 
 
-def _parse_analyze_energies(stdout_text, n_equil):
-    """Extract per-frame total potential energies from $ANALYZE8 stdout."""
+def _submit_analyze_to_cluster(sh_names):
+    """Submit analyze .sh files to the GPU cluster via submitTinker.py."""
+    liquid_dir = _config["liquid_dir"]
+    submitexe  = _config["submitexe"]
+    nodes      = _config.get("nodes", [])
+    nodes_arg  = f" -nodes {' '.join(nodes)}" if nodes else ""
+    cmd = (f"python {submitexe} -x {' '.join(sh_names)}"
+           f" -t GPU{nodes_arg} -p {liquid_dir}")
+    log.info("Submitting analyze jobs to cluster: %s", cmd)
+    rc = subprocess.run(cmd, shell=True, cwd=liquid_dir).returncode
+    if rc != 0:
+        log.warning("submitTinker for analyze exited with code %d", rc)
+
+
+def _wait_for_analyze_logs(log_paths):
+    """Block until every analyze log has n_production energy entries."""
+    n_production   = _config["n_production"]
+    check_interval = _config.get("check_interval", 60)
+    while True:
+        pending = []
+        for p in log_paths:
+            if not os.path.isfile(p):
+                pending.append(os.path.basename(p))
+                continue
+            count = sum(1 for line in open(p) if 'Total Potential Energy' in line)
+            if count < n_production:
+                pending.append(f"{os.path.basename(p)} ({count}/{n_production})")
+        if not pending:
+            log.info("All analyze jobs completed.")
+            break
+        log.info("Waiting for analyze (%d pending): %s",
+                 len(pending), ", ".join(pending))
+        time.sleep(check_interval)
+
+
+def _parse_analyze_log(log_path):
+    """Return a numpy array of per-frame total potential energies from an ANALYZE9 log."""
     energies = []
-    for line in stdout_text.splitlines():
-        if 'Total Potential Energy' in line:
-            m = re.search(r'Total Potential Energy\s*:\s*([-\d.]+)', line)
-            if m:
-                energies.append(float(m.group(1)))
-    if len(energies) <= n_equil:
-        raise RuntimeError(
-            f"$ANALYZE8 returned only {len(energies)} energy frames; "
-            f"need more than {n_equil} (n_equil)"
-        )
-    return np.array(energies[n_equil:])
-
-
-def _spawn_analyze(prm_file, arc_path=None):
-    """Launch $ANALYZE8 as a non-blocking Popen. Returns (proc, tmp_key_path).
-
-    *arc_path* overrides the trajectory file; callers must supply it when
-    running at multiple temperatures (each temperature has its own arc).
-    """
-    analyze_cmd = os.environ.get('ANALYZE8')
-    if not analyze_cmd:
-        raise RuntimeError("$ANALYZE8 environment variable is not set")
-
-    if arc_path is None:
-        raise RuntimeError(
-            "_spawn_analyze: arc_path must be provided explicitly"
-        )
-    arc_abs = str(Path(arc_path).resolve())
-    tmp_key = _make_key_with_prm(prm_file)
-    proc = subprocess.Popen(
-        [analyze_cmd, arc_abs, '-k', tmp_key, 'E'],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
-    )
-    return proc, tmp_key
-
-
-def _collect_analyze(proc, tmp_key):
-    """Wait for a spawned analyze process and return per-frame energies."""
-    n_equil = _config["n_equil"]
-    try:
-        stdout, stderr = proc.communicate()
-        if proc.returncode != 0:
-            raise RuntimeError(
-                f"$ANALYZE8 failed (rc={proc.returncode}):\n{stderr}"
-            )
-        return _parse_analyze_energies(stdout, n_equil)
-    finally:
-        try:
-            os.unlink(tmp_key)
-        except OSError:
-            pass
+    with open(log_path) as fh:
+        for line in fh:
+            if 'Total Potential Energy' in line:
+                m = re.search(r'Total Potential Energy\s*:\s*([-\d.]+)', line)
+                if m:
+                    energies.append(float(m.group(1)))
+    if not energies:
+        raise RuntimeError(f"No energy entries found in analyze log: {log_path}")
+    return np.array(energies)
 
 
 def _reconstruct_entry_params(free_params, entry):
@@ -917,35 +957,37 @@ def jacobian_fd(params):
 
         param_perturb_map[j] = (plus_idx, minus_idx)
 
-    # Spawn all $ANALYZE processes (density Jacobian) in parallel across every
-    # (param perturbation, temperature) pair, then run autoBAR concurrently.
-    # Key: (pidx, temp_i) → (proc, tmp_key_path)
-    analyze_jobs = {}
-    try:
-        for j in range(n_params):
-            for pidx in param_perturb_map[j]:
-                prm_k = param_file + f'_{pidx:02d}'
-                for temp_i, T in enumerate(temperatures):
-                    liquid_base = _config["liquid_base"]
-                    arc_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.0f}K.arc")
-                    analyze_jobs[(pidx, temp_i)] = _spawn_analyze(prm_k, arc_path=arc_path)
+    # --- Build production arcs (one per temperature, shared by all perturbations) ---
+    liquid_base = _config["liquid_base"]
+    n_equil     = _config["n_equil"]
+    for T in temperatures:
+        tag      = f"_{T:.0f}K"
+        full_arc = os.path.join(liquid_dir, f"{liquid_base}{tag}.arc")
+        prod_arc = os.path.join(liquid_dir, f"{liquid_base}{tag}-prod.arc")
+        log.info("Trimming production arc for T=%.1fK (%d equil frames dropped)", T, n_equil)
+        _trim_arc_to_production(full_arc, prod_arc, n_equil)
 
-        _run_autobar()
+    # --- Write analyze .sh files and submit to cluster, then run autoBAR ---
+    # Key: (pidx, temp_i) → log_path
+    analyze_log_map = {}
+    sh_names = []
+    for j in range(n_params):
+        for pidx in param_perturb_map[j]:
+            prm_k = param_file + f'_{pidx:02d}'
+            for temp_i, T in enumerate(temperatures):
+                if (pidx, temp_i) not in analyze_log_map:
+                    sh_name, log_path = _write_analyze_sh(prm_k, pidx, T)
+                    analyze_log_map[(pidx, temp_i)] = log_path
+                    sh_names.append(sh_name)
 
-        E_by_pidx_temp = {}   # (pidx, temp_i) → energies array
-        for (pidx, temp_i), (proc, tmp_key) in analyze_jobs.items():
-            E_by_pidx_temp[(pidx, temp_i)] = _collect_analyze(proc, tmp_key)
-        analyze_jobs.clear()
-    finally:
-        for pidx_ti, (proc, tmp_key) in analyze_jobs.items():
-            try:
-                proc.kill()
-            except OSError:
-                pass
-            try:
-                os.unlink(tmp_key)
-            except OSError:
-                pass
+    _submit_analyze_to_cluster(sh_names)
+    _run_autobar()
+    _wait_for_analyze_logs(list(analyze_log_map.values()))
+
+    E_by_pidx_temp = {
+        key: _parse_analyze_log(log_path)
+        for key, log_path in analyze_log_map.items()
+    }
 
     # --- HFE Jacobian (row 0) from result.txt ---
     with open('result.txt') as f:
