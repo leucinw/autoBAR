@@ -541,7 +541,7 @@ def _make_key_with_prm(prm_file, output_dir=None):
 
 
 def _parse_analyze_energies(stdout_text, n_equil):
-    """Extract per-frame total potential energies from $ANALYZE stdout."""
+    """Extract per-frame total potential energies from $ANALYZE8 stdout."""
     energies = []
     for line in stdout_text.splitlines():
         if 'Total Potential Energy' in line:
@@ -550,21 +550,21 @@ def _parse_analyze_energies(stdout_text, n_equil):
                 energies.append(float(m.group(1)))
     if len(energies) <= n_equil:
         raise RuntimeError(
-            f"$ANALYZE returned only {len(energies)} energy frames; "
+            f"$ANALYZE8 returned only {len(energies)} energy frames; "
             f"need more than {n_equil} (n_equil)"
         )
     return np.array(energies[n_equil:])
 
 
 def _spawn_analyze(prm_file, arc_path=None):
-    """Launch $ANALYZE as a non-blocking Popen. Returns (proc, tmp_key_path).
+    """Launch $ANALYZE8 as a non-blocking Popen. Returns (proc, tmp_key_path).
 
     *arc_path* overrides the trajectory file; callers must supply it when
     running at multiple temperatures (each temperature has its own arc).
     """
-    analyze_cmd = os.environ.get('ANALYZE')
+    analyze_cmd = os.environ.get('ANALYZE8')
     if not analyze_cmd:
-        raise RuntimeError("$ANALYZE environment variable is not set")
+        raise RuntimeError("$ANALYZE8 environment variable is not set")
 
     if arc_path is None:
         raise RuntimeError(
@@ -586,7 +586,7 @@ def _collect_analyze(proc, tmp_key):
         stdout, stderr = proc.communicate()
         if proc.returncode != 0:
             raise RuntimeError(
-                f"$ANALYZE failed (rc={proc.returncode}):\n{stderr}"
+                f"$ANALYZE8 failed (rc={proc.returncode}):\n{stderr}"
             )
         return _parse_analyze_energies(stdout, n_equil)
     finally:
@@ -894,6 +894,18 @@ def jacobian_fd(params):
     return J
 
 
+def _load_tinker_env(tinkerenv):
+    """Source tinker.env and merge its exported variables into os.environ."""
+    result = subprocess.run(
+        ['bash', '-c', f'source {tinkerenv} && env'],
+        capture_output=True, text=True,
+    )
+    for line in result.stdout.splitlines():
+        key, sep, val = line.partition('=')
+        if sep:
+            os.environ[key] = val
+
+
 def main():
     _setup_logging()
 
@@ -970,6 +982,7 @@ def main():
     autobar_path = str(Path(__file__).resolve().parent.parent / 'autoBAR.py')
     submitexe    = str(Path(__file__).resolve().parent / 'submitTinker.py')
     tinkerenv    = str(Path(__file__).resolve().parent.parent / 'dat' / 'tinker.env')
+    _load_tinker_env(tinkerenv)
     nodes        = settings.get("node_list") or []
     check_interval = float(settings.get("checking_time", 60))
 
