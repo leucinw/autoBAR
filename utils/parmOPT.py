@@ -672,6 +672,8 @@ def _write_analyze_sh(prm_file, pidx, temperature):
     with open(os.path.join(liquid_dir, key_name), 'w') as fh:
         fh.write(key_contents)
 
+    Path(os.path.join(liquid_dir, log_name)).unlink(missing_ok=True)
+
     lines = [
         "#!/bin/bash",
         f"source {tinkerenv}",
