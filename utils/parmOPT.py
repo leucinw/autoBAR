@@ -172,15 +172,112 @@ def _update_shared_key(current_prm):
         f.write(contents)
 
 
-def _submit_neat_liquid_to_cluster():
-    """Submit per-temperature neat-liquid MD .sh files to the GPU cluster."""
-    liquid_dir = _config["liquid_dir"]
-    sh_names = _config["neat_liquid_sh_names"]
-    submitexe = _config["submitexe"]
-    nodes = _config.get("nodes", [])
+def _count_arc_frames(arc_path):
+    """Return the number of trajectory frames in a Tinker .arc file, or 0 on error."""
+    if not os.path.isfile(arc_path):
+        return 0
+    try:
+        with open(arc_path, 'rb') as f:
+            first_line = f.readline().decode(errors='replace').split()
+            if not first_line:
+                return 0
+            n_atoms = int(first_line[0])
+            second_line = f.readline().decode(errors='replace').split()
+            if not second_line:
+                return 1
+            # stride = n_atoms+1 if first data line starts with "1" (no box),
+            # else n_atoms+2 (with box line)
+            stride = (n_atoms + 1) if second_line[0] == "1" else (n_atoms + 2)
+        result = subprocess.run(
+            ['wc', '-l', arc_path], capture_output=True, text=True
+        )
+        total_lines = int(result.stdout.split()[0])
+        with open(arc_path, 'rb') as f:
+            f.seek(-1, os.SEEK_END)
+            if f.read(1) != b'\n':
+                total_lines += 1
+        return total_lines // stride
+    except (OSError, ValueError, IndexError):
+        return 0
+
+
+def _submit_neat_liquid_to_cluster(is_initial=False):
+    """Submit per-temperature neat-liquid MD .sh files to the GPU cluster.
+
+    When *is_initial* is True, checks the existing .arc for each temperature:
+      - complete (>= n_total frames): skip submission entirely.
+      - partial with a .dyn checkpoint: rewrite the .sh with the remaining
+        step count and append-redirect (>>) so Tinker continues seamlessly.
+      - empty / no arc: submit the normal .sh for a fresh run.
+
+    When *is_initial* is False (optimizer trial steps), the existing .arc and
+    .dyn are deleted first to ensure a clean run with the new parameters.
+    """
+    liquid_dir   = _config["liquid_dir"]
+    liquid_base  = _config["liquid_base"]
+    sh_names     = _config["neat_liquid_sh_names"]
+    temperatures = _config["temperatures"]
+    submitexe    = _config["submitexe"]
+    nodes        = _config.get("nodes", [])
+    n_equil      = _config["n_equil"]
+    n_production = _config["n_production"]
+    md_dt        = _config["md_dt"]
+    md_t_out     = _config["md_t_out"]
+    steps_per_frame = round(md_t_out * 1000.0 / md_dt)
+    n_total         = n_equil + n_production
+    total_steps     = n_total * steps_per_frame
+
+    to_submit = []
+    for sh_name, T in zip(sh_names, temperatures):
+        tag      = f"_{T:.0f}K"
+        arc_path = os.path.join(liquid_dir, f"{liquid_base}{tag}.arc")
+        dyn_path = os.path.join(liquid_dir, f"{liquid_base}{tag}.dyn")
+        log_name = f"{liquid_base}{tag}-md.log"
+
+        if not is_initial:
+            # Non-initial step: clear stale arc+dyn so Tinker starts fresh
+            Path(arc_path).unlink(missing_ok=True)
+            Path(dyn_path).unlink(missing_ok=True)
+            to_submit.append(sh_name)
+            continue
+
+        n_done = _count_arc_frames(arc_path)
+        if n_done >= n_total:
+            log.info("[Skip]   T=%.1fK: arc already complete (%d/%d frames)",
+                     T, n_done, n_total)
+            continue
+
+        if n_done > 0 and os.path.isfile(dyn_path):
+            remaining        = n_total - n_done
+            remaining_steps  = remaining * steps_per_frame
+            log.info("[Resume] T=%.1fK: %d/%d frames done, %d steps remaining",
+                     T, n_done, n_total, remaining_steps)
+            sh_path = os.path.join(liquid_dir, sh_name)
+            with open(sh_path) as fh:
+                sh_content = fh.read()
+            # Replace total step count in the DYNAMIC9 command line
+            sh_content = re.sub(
+                rf'(\$DYNAMIC9\s+\S+\s+-k\s+\S+\s+){total_steps}(\s+)',
+                rf'\g<1>{remaining_steps}\2',
+                sh_content,
+            )
+            # Append log so earlier density frames are preserved
+            sh_content = sh_content.replace(f' > {log_name}', f' >> {log_name}', 1)
+            resume_sh_name = sh_name.replace('.sh', '-resume.sh')
+            resume_sh_path = os.path.join(liquid_dir, resume_sh_name)
+            with open(resume_sh_path, 'w') as fh:
+                fh.write(sh_content)
+            to_submit.append(resume_sh_name)
+        else:
+            log.info("[New]    T=%.1fK: submitting fresh MD run", T)
+            to_submit.append(sh_name)
+
+    if not to_submit:
+        log.info("All neat liquid MD trajectories already complete; skipping submission.")
+        return
 
     nodes_arg = f" -nodes {' '.join(nodes)}" if nodes else ""
-    cmd = (f"python {submitexe} -x {' '.join(sh_names)}"
+    cmd = (f"python {submitexe} -x {' '.join(to_submit)}"
            f" -t GPU{nodes_arg} -p {liquid_dir}")
     log.info("Submitting neat liquid MD to cluster: %s", cmd)
     rc = subprocess.run(cmd, shell=True, cwd=liquid_dir).returncode
@@ -204,7 +301,7 @@ def _count_log_frames(log_path):
 
 
 def _wait_for_neat_liquid_mds():
-    """Block until every per-temperature neat-liquid MD log has enough frames."""
+    """Block until every per-temperature neat-liquid MD arc has enough frames."""
     liquid_dir    = _config["liquid_dir"]
     liquid_base   = _config["liquid_base"]
     temperatures  = _config["temperatures"]
@@ -216,8 +313,8 @@ def _wait_for_neat_liquid_mds():
     while True:
         pending = []
         for T in temperatures:
-            log_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.0f}K-md.log")
-            n_done = _count_log_frames(log_path)
+            arc_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.0f}K.arc")
+            n_done = _count_arc_frames(arc_path)
             if n_done < n_total:
                 pending.append(f"T={T:.1f}K ({n_done}/{n_total} frames)")
         if not pending:
@@ -668,7 +765,7 @@ def model_func(params):
     # the neat-liquid MD jobs to the GPU cluster without waiting for HFE.
     _update_shared_key(current_prm)
     autobar_proc = _run_autobar(background=True)
-    _submit_neat_liquid_to_cluster()
+    _submit_neat_liquid_to_cluster(is_initial=is_initial)
 
     # --- Wait for HFE ---
     rc = autobar_proc.wait()
