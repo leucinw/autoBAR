@@ -45,11 +45,13 @@ Edit `dat/tinker.env` to point to your local Tinker and Tinker9 installations:
 ```bash
 export TINKER8=/path/to/tinker
 export DYNAMIC8="$TINKER8/dynamic"
+export ANALYZE8="$TINKER8/analyze"
 export BAR8="$TINKER8/bar"
 export MINIMIZE8="$TINKER8/minimize"
 
 export tk9home=/path/to/tinker9/build
 export DYNAMIC9="$tk9home/dynamic9"
+export ANALYZE9="$tk9home/analyze9"
 export BAR9="$tk9home/bar9"
 export MINIMIZE9="$tk9home/minimize9"
 ```
@@ -191,7 +193,7 @@ The `utils/parmOPT.py` utility optimizes force field parameters to simultaneousl
 python utils/parmOPT.py
 ```
 
-It uses `scipy.optimize.least_squares` (TRF, soft-L1 loss) with a custom Jacobian. The HFE row is evaluated by one-step FEP via autoBAR; each density row uses the fluctuation formula (Wang et al. 2013, Eq. 4) applied to the most recent per-temperature trajectory, with all `$ANALYZE` calls dispatched in parallel alongside the autoBAR HFE run.
+It uses `scipy.optimize.least_squares` (TRF, soft-L1 loss) with a custom Jacobian. The HFE row is evaluated by one-step FEP via autoBAR; each density row uses the fluctuation formula (Wang et al. 2013, Eq. 4) applied to the most recent per-temperature trajectory, with all `$ANALYZE9` jobs submitted to the GPU cluster in parallel alongside the autoBAR HFE run.
 
 ### Required settings
 
@@ -226,6 +228,9 @@ liquid_base: neat_liq                    # Coordinate/trajectory base name insid
                                          # (default: "neat_liq"); sets xyz/key/sh/arc/dyn names
 liquid_key: neat_liq                     # Key file basename (default: same as liquid_base)
 equil_time: 0.5                          # Equilibration time (ns) — discarded before averaging (default: 0.02)
+hfe_liquid_key: path/to/liquid.key       # Override the HFE liquid key template used to auto-generate neat_liq.key
+                                         # (default: dat/liquid.key in the autoBAR repo)
+checking_time: 60                        # Polling interval (s) for MD and analyze job completion (default: 60)
 ```
 
 ### Choosing the weights
@@ -298,7 +303,9 @@ density_weights: [1.0,    1.0,    1.0]      # optional per-T weights; replaces d
 
 **Weight normalization:** each `density_weight` is divided by the number of temperatures internally, so the total density contribution to the cost is the same whether you fit at one temperature or ten. The user-specified weights control the *relative* importance of each temperature; the *aggregate* HFE/density balance is unchanged. The effective weights are printed to `parmOPT.log` at startup.
 
-autoBAR runs the HFE calculation once per optimizer call. Neat-liquid MD jobs are submitted to the GPU cluster in parallel with the HFE run: each temperature gets its own coordinate symlink, run script, and GPU card, so all temperatures run simultaneously. parmOPT waits for the HFE job and all neat-liquid MD jobs to finish before moving to the next optimizer step. The resulting temperature-tagged arc files (`neat_liq_298.2K.arc`, etc.) are reused by the parallel `$ANALYZE` calls in the Jacobian computation.
+autoBAR runs the HFE calculation once per optimizer call. Neat-liquid MD jobs are submitted to the GPU cluster in parallel with the HFE run: each temperature gets its own coordinate symlink, run script, and GPU card, so all temperatures run simultaneously. Before submitting, parmOPT checks the existing `.arc` file for each temperature — if it already contains the required number of frames (e.g., after a restart), the submission is skipped; if the run is partial and a `.dyn` checkpoint exists, a resume script is generated with only the remaining steps. parmOPT waits for the HFE job and all neat-liquid MD jobs to finish before moving to the next optimizer step.
+
+For the Jacobian, parmOPT first strips the equilibration frames from each trajectory, writing a `*-prod.arc` file containing only production snapshots. It then writes one `$ANALYZE9` run script per (parameter perturbation, temperature) pair, submits all scripts to the GPU cluster simultaneously via `submitTinker.py`, and waits for all output logs before assembling the density sensitivity rows of the Jacobian.
 
 ### Optimizing multiple parameter groups
 
@@ -354,22 +361,37 @@ The key and per-temperature shell scripts are auto-generated at startup:
 | `neat_liq.xyz` | **User-supplied** | Simulation box Tinker coordinates |
 | `neat_liq.key` | Auto-generated (if absent) | Derived from the HFE liquid key template by removing `vdw-annihilate`, `vdw-lambda`, `ele-lambda`, and `ligand` lines; shared by all temperatures |
 | `neat_liq_{T}K.xyz` | Auto-generated (symlink) | Per-temperature symlink → `neat_liq.xyz`; Tinker writes `neat_liq_{T}K.arc` so parallel GPU runs don't overwrite each other |
+| `neat_liq_{T}K.key` | Auto-generated (symlink) | Per-temperature symlink → `neat_liq.key`; ensures Tinker names its output after the temperature-tagged coordinate file |
 | `neat_liq_{T}K.sh` | Auto-generated (always) | Per-temperature NPT run script (sources `dat/tinker.env`, calls `$DYNAMIC9`); each is submitted to a separate GPU card |
 
-Example directory after a multi-temperature run at 278 K and 298 K:
+Example directory after a two-temperature run at 278 K and 298 K with Jacobian computed:
 ```
 neat_liquid/
-├── neat_liq.xyz               # user-supplied
-├── neat_liq.key               # shared key file (PARAMETERS updated each opt step)
-├── neat_liq_278.2K.xyz        # symlink → neat_liq.xyz
-├── neat_liq_278.2K.sh         # run script for 278.2 K
-├── neat_liq_278.2K-md.log     # MD log
-├── neat_liq_278.2K.arc        # trajectory
-├── neat_liq_298.2K.xyz        # symlink → neat_liq.xyz
-├── neat_liq_298.2K.sh         # run script for 298.2 K
-├── neat_liq_298.2K-md.log     # MD log
-└── neat_liq_298.2K.arc        # trajectory
+├── neat_liq.xyz                        # user-supplied
+├── neat_liq.key                        # shared key file (PARAMETERS updated each opt step)
+├── neat_liq_278K.xyz                   # symlink → neat_liq.xyz
+├── neat_liq_278K.key                   # symlink → neat_liq.key
+├── neat_liq_278K.sh                    # MD run script for 278 K
+├── neat_liq_278K-md.log                # MD log
+├── neat_liq_278K.arc                   # full trajectory (equil + production)
+├── neat_liq_278K.dyn                   # MD checkpoint for resume
+├── neat_liq_278K-prod.arc              # production-only arc (equil frames stripped)
+├── neat_liq_278K-prm01.key             # analyze key: prm perturb +Δ, 278 K
+├── neat_liq_278K-prm01-analyze.sh      # analyze script for above
+├── neat_liq_278K-prm01-analyze.log     # ANALYZE9 output
+├── neat_liq_298K.xyz                   # symlink → neat_liq.xyz
+├── neat_liq_298K.key                   # symlink → neat_liq.key
+├── neat_liq_298K.sh                    # MD run script for 298 K
+├── neat_liq_298K-md.log                # MD log
+├── neat_liq_298K.arc                   # full trajectory
+├── neat_liq_298K.dyn                   # MD checkpoint
+├── neat_liq_298K-prod.arc              # production-only arc
+├── neat_liq_298K-prm01.key             # analyze key: prm perturb +Δ, 298 K
+├── neat_liq_298K-prm01-analyze.sh      # analyze script for above
+└── neat_liq_298K-prm01-analyze.log     # ANALYZE9 output
 ```
+
+> For `N` free parameters, `2N` parameter perturbations are created per optimizer call; the analyze files are labeled `prm01` … `prm{2N}` and all submitted to the cluster simultaneously.
 
 ## Recommended Minimal Settings
 
