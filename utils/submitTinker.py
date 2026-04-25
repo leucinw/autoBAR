@@ -89,7 +89,8 @@ def ssh_output(node, remote_cmd, timeout=SSH_TIMEOUT):
     cmd = f'ssh -o StrictHostKeyChecking=no {node} "{remote_cmd}"'
     try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=timeout,
+            cmd, shell=True, executable='/bin/bash',
+            capture_output=True, text=True, timeout=timeout,
         )
         if result.returncode != 0:
             log.debug("SSH to %s returned code %d: %s", node, result.returncode, result.stderr.strip())
@@ -231,7 +232,7 @@ def _ssh_submit(node, remote_cmd):
     """Fire-and-forget a command on *node* via SSH."""
     full_cmd = f"ssh -o StrictHostKeyChecking=no {node} '{remote_cmd}' &"
     log.info("  --> %s : %s", node, remote_cmd)
-    subprocess.run(full_cmd, shell=True)
+    subprocess.run(full_cmd, shell=True, executable='/bin/bash')
 
 
 def submit_round(pending_cmds, job_type, gpu_nodes, cpu_nodes, nproc_required):
