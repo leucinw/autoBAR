@@ -97,21 +97,23 @@ def setup():
     if phase == 'gas':
       gasminsh = 'gas-min.sh'
       with open(gasminsh, 'w') as f:
+        f.write('#!/bin/bash\n')
         f.write(f'source {tinkerenv}\n')
         f.write(f'{phase_minimize[phase]} {xyzfile} -key gas.key 0.1 > gas-min.log \n')
         f.write(f'wait\nmv {phase_xyz[phase]}_2 {phase_xyz[phase]}\n')
       if not os.path.isfile("gas-min.log"):
-        rc = subprocess.run(['sh', gasminsh]).returncode
+        rc = subprocess.run(['bash', gasminsh]).returncode
         if rc != 0 or not os.path.isfile(phase_xyz[phase]):
           sys.exit(RED + f"[Error] gas minimization failed (rc={rc}); see gas-min.log" + ENDC)
     elif phase == 'liquid':
       liquidminsh = 'liquid-min.sh'
       with open(liquidminsh, 'w') as f:
+        f.write('#!/bin/bash\n')
         f.write(f'source {tinkerenv}\n')
         f.write(f'{phase_minimize[phase]} {xyzfile} -key liquid.key 0.2 > liquid-min.log\n')
         f.write(f'wait\nmv {phase_xyz[phase]}_2 {phase_xyz[phase]}\n')
       if not os.path.isfile("liquid-min.log"):
-        rc = subprocess.run(['sh', liquidminsh]).returncode
+        rc = subprocess.run(['bash', liquidminsh]).returncode
         if rc != 0 or not os.path.isfile(phase_xyz[phase]):
           sys.exit(RED + f"[Error] liquid minimization failed (rc={rc}); see liquid-min.log" + ENDC)
 
