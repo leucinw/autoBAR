@@ -40,14 +40,26 @@ expt_density:   789.0     # Experimental neat-liquid density at that temperature
 # expt_densities:  [802.3,  789.0,  774.8]    # matching experimental densities (kg/m³)
 # density_weights: [1.0,    1.0,    1.0]       # per-temperature weights (optional)
 
-# --- Weights ---
-# The optimizer minimises: (hfe_weight·ΔHFE)² + Σ(density_weight_i·Δρ_i)²
-# Rule of thumb — set weight ≈ 1 / (acceptable error):
-#   HFE ≈ 0.2 kcal/mol  →  hfe_weight: 5.0
-#   density ≈ 2 kg/m³   →  density_weight: 0.5
-hfe_weight:     1.0       # weight for HFE residual (default: 1.0)
-density_weight: 1.0       # weight for density residual (scalar; ignored when
+# --- Weights and scale normalization ---
+# The optimizer minimises: (hfe_weight·ΔHFE/hfe_denom)² + Σ(density_weight_i·Δρ_i/density_denom)²
+#
+# Denominators normalize physical units → dimensionless residuals (ForceBalance convention).
+# Defaults are computed automatically from the experimental target values:
+#   hfe_denom     default = sqrt(|expt_hfe|)           e.g. expt_hfe=-5 → denom≈2.24 kcal/mol
+#   density_denom default = sqrt(|expt_density|)       e.g. expt_density=997 → denom≈31.6 kg/m³
+#                         = std_dev(expt_densities)    when multiple temperatures are given
+# With the defaults, hfe_weight=density_weight=1.0 gives balanced optimization out of the box.
+# Override denom only to fix the normalization scale across multiple runs.
+#
+# Weights control relative importance *after* normalization.  Increase the weight of a
+# property if the optimizer consistently sacrifices it.  A factor-of-2 weight change
+# shifts the cost ratio by 4×.  Monitor the WtNormRes column in parmOPT.log each step.
+hfe_weight:     1.0       # relative importance of HFE (default: 1.0)
+density_weight: 1.0       # relative importance of density (scalar; ignored when
                           # density_weights list is provided)
+# hfe_denom:    2.24      # kcal/mol — override auto-computed default (sqrt(|expt_hfe|))
+# density_denom: 31.6     # kg/m³   — override auto-computed default (sqrt(|expt_density|)
+                          #           or std_dev of expt_densities for multi-T)
 
 # --- Liquid MD setup ---
 liquid_dir:   neat_liquid  # Directory for neat-liquid MD files.

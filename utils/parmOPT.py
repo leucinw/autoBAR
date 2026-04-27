@@ -39,18 +39,20 @@ def _log_step_table(step, params, hfe, densities):
     temperatures = _config["temperatures"]
     hfe_weight = _config["hfe_weight"]
     density_weights = _config["density_weights"]
+    hfe_denom = _config["hfe_denom"]
+    density_denom = _config["density_denom"]
 
-    col = (24, 12, 12, 12, 16)   # property, target, current, diff, weighted_residual
+    col = (24, 12, 12, 12, 16)   # property, target, current, diff, wt_norm_residual
     hdr = (f"{'Property':<{col[0]}}"
            f"{'Target':>{col[1]}}"
            f"{'Current':>{col[2]}}"
            f"{'Diff':>{col[3]}}"
-           f"{'WtResidual':>{col[4]}}")
+           f"{'WtNormRes':>{col[4]}}")
     sep = "-" * sum(col)
 
     rows = []
     hfe_diff = hfe - expt_hfe
-    hfe_wt_res = hfe_weight * hfe_diff
+    hfe_wt_res = hfe_weight * hfe_diff / hfe_denom
     rows.append(
         f"{'HFE (kcal/mol)':<{col[0]}}"
         f"{expt_hfe:>{col[1]}.4f}"
@@ -62,7 +64,7 @@ def _log_step_table(step, params, hfe, densities):
     for T, rho, rho_tgt, d_weight in zip(temperatures, densities, expt_densities, density_weights):
         label = f"Density@{T:.1f}K (kg/m³)"
         diff = rho - rho_tgt
-        wt_res = d_weight * diff
+        wt_res = d_weight * diff / density_denom
         wt_res_list.append(wt_res)
         rows.append(
             f"{label:<{col[0]}}"
@@ -883,9 +885,11 @@ def model_func(params):
 
     _log_step_table(_config["step"], params, hfe, densities)
 
-    residuals = [hfe_weight * (hfe - expt_hfe)]
+    hfe_denom = _config["hfe_denom"]
+    density_denom = _config["density_denom"]
+    residuals = [hfe_weight * (hfe - expt_hfe) / hfe_denom]
     for rho, rho_tgt, d_weight in zip(densities, expt_densities, density_weights):
-        residuals.append(d_weight * (rho - rho_tgt))
+        residuals.append(d_weight * (rho - rho_tgt) / density_denom)
     residuals = np.array(residuals)
 
     current_cost = float(np.dot(residuals, residuals))
@@ -938,6 +942,8 @@ def jacobian_fd(params):
     diff_step = _config["diff_step"]
     hfe_weight = _config["hfe_weight"]
     density_weights = _config["density_weights"]
+    hfe_denom = _config["hfe_denom"]
+    density_denom = _config["density_denom"]
     beta_list = _config["beta_list"]
     rho_frames_list = _config["rho_frames_list"]
     temperatures = _config["temperatures"]
@@ -1050,7 +1056,7 @@ def jacobian_fd(params):
         else:
             r_plus = feps[j * 2 + 1]
             r_minus = feps[j * 2 + 2]
-        J[0, j] = hfe_weight * (r_plus - r_minus) / (2 * diff_step)
+        J[0, j] = hfe_weight * (r_plus - r_minus) / (2 * diff_step) / hfe_denom
 
     # --- Density Jacobian (rows 1..n_temps) via Eq. 4 ---
     for temp_i, (d_weight, beta, rho_frames) in enumerate(
@@ -1064,7 +1070,7 @@ def jacobian_fd(params):
                 E_by_pidx_temp[(minus_idx, temp_i)],
                 beta,
                 diff_step,
-            )
+            ) / density_denom
 
     return J
 
@@ -1152,6 +1158,23 @@ def main():
     density_weights = [w / n_temps for w in density_weights]
 
     beta_list = [1.0 / (_KB * T) for T in temperatures]
+
+    # --- Scale-normalization denominators (ForceBalance-style) ---
+    # Defaults: std-dev of expt values when multiple points are available,
+    # sqrt(|single value|) when only one point exists (matches FB's convention).
+    # Both can be overridden in settings.yaml via hfe_denom / density_denom.
+    if len(expt_densities) > 1:
+        density_denom_default = float(np.std(expt_densities))
+    else:
+        density_denom_default = float(np.sqrt(abs(expt_densities[0])))
+    density_denom = float(settings.get("density_denom", density_denom_default))
+    if density_denom <= 0:
+        sys.exit("[Error] density_denom must be positive.")
+
+    hfe_denom_default = float(np.sqrt(abs(expt_hfe))) if expt_hfe != 0.0 else 1.0
+    hfe_denom = float(settings.get("hfe_denom", hfe_denom_default))
+    if hfe_denom <= 0:
+        sys.exit("[Error] hfe_denom must be positive.")
 
     # parmOPT.py lives in <repo>/utils/, so autoBAR.py is one level up.
     autobar_path = str(Path(__file__).resolve().parent.parent / 'autoBAR.py')
@@ -1295,7 +1318,9 @@ def main():
         "expt_hfe": expt_hfe,
         "expt_densities": expt_densities,
         "hfe_weight": hfe_weight,
+        "hfe_denom": hfe_denom,
         "density_weights": density_weights,
+        "density_denom": density_denom,
         "temperatures": temperatures,
         "beta_list": beta_list,
         "opt_entries": opt_entries,
@@ -1341,9 +1366,9 @@ def main():
             else:
                 parts.append(f"{p:.6g}(fixed)")
         log.info(f'  {entry["term_idx"]}: {", ".join(parts)}')
-    log.info(f'expt_hfe: {expt_hfe} kcal/mol  hfe_weight: {hfe_weight}')
-    log.info(f'density weights normalized by n_temps={n_temps} '
-             f'(effective = user_weight / {n_temps})')
+    log.info(f'expt_hfe: {expt_hfe} kcal/mol  hfe_weight: {hfe_weight}  hfe_denom: {hfe_denom:.4g}')
+    log.info(f'density_denom: {density_denom:.4g} kg/m³  '
+             f'(density weights normalized by n_temps={n_temps})')
     for T, rho_tgt, d_weight in zip(temperatures, expt_densities, density_weights):
         log.info(f'  T={T:.1f} K: expt_density={rho_tgt} kg/m³  '
                  f'density_weight(effective)={d_weight:.6g}')

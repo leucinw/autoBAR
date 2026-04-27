@@ -222,8 +222,14 @@ liquid_md_write_freq: 0.1               # Trajectory output interval (ps)
 liquid_md_pressure:   1.0               # Pressure (atm)
 
 # --- parmOPT optional ---
-hfe_weight: 1.0                          # Weight applied to the HFE residual (default: 1.0)
-density_weight: 1.0                      # Weight applied to the density residual (default: 1.0)
+hfe_weight: 1.0                          # Relative importance weight for the HFE residual (default: 1.0)
+density_weight: 1.0                      # Relative importance weight for the density residual (default: 1.0)
+hfe_denom: 2.24                          # Scale denominator for HFE (kcal/mol).
+                                         # Default: sqrt(|expt_hfe|). Override to fix the normalization
+                                         # scale across multiple optimization runs.
+density_denom: 31.6                      # Scale denominator for density (kg/m³).
+                                         # Default: std-dev of expt_densities (multi-T) or
+                                         # sqrt(|expt_density|) (single-T). Override as needed.
 liquid_base: neat_liq                    # Coordinate/trajectory base name inside liquid_dir
                                          # (default: "neat_liq"); sets xyz/key/sh/arc/dyn names
 liquid_key: neat_liq                     # Key file basename (default: same as liquid_base)
@@ -233,53 +239,71 @@ hfe_liquid_key: path/to/liquid.key       # Override the HFE liquid key template 
 checking_time: 60                        # Polling interval (s) for MD and analyze job completion (default: 60)
 ```
 
-### Choosing the weights
+### Weights and scale normalization
 
-The optimizer minimizes the sum of squared weighted residuals:
-
-```
-cost = (hfe_weight × ΔHFE)² + Σ (density_weight_i × Δρ_i)²
-```
-
-Because HFE is in kcal/mol and density is in kg/m³, a raw error of 1 kcal/mol
-and a raw error of 1 kg/m³ are physically very different but contribute equally to
-the cost when both weights are 1.0. This imbalance will cause the optimizer to
-focus almost entirely on density and neglect HFE. The weights should be chosen so
-that a *chemically meaningful* error in each property produces a similar cost
-contribution.
-
-**Rule of thumb — inverse acceptable error:**
-
-| Property | Typical acceptable error | Suggested weight |
-|----------|--------------------------|------------------|
-| HFE | 0.2 kcal/mol | `hfe_weight: 5.0` |
-| Density (kg/m³) | 2 kg/m³ | `density_weight: 0.5` |
-
-Both give a weighted residual of ~1 at the acceptable-error threshold, so neither
-property dominates the other.
-
-You can also set the weights relative to each other without fixing a scale.
-A useful starting point is:
+The optimizer minimizes:
 
 ```
-density_weight / hfe_weight ≈ (target HFE precision) / (target density precision)
-                             = 0.2 kcal/mol / 2 kg/m³  =  0.1
+cost = (hfe_weight × ΔHFE / hfe_denom)² + Σ (density_weight_i × Δρ_i / density_denom)²
 ```
 
-For example, `hfe_weight: 1.0` and `density_weight: 0.1` means a 1 kcal/mol HFE
-error costs the same as a 10 kg/m³ density error.
+There are two separate knobs:
 
-**Practical starting suggestion for water-like solvents:**
+| Knob | Purpose | Settings key |
+|------|---------|--------------|
+| **Denom** | Normalizes the physical scale of each property so residuals are dimensionless | `hfe_denom`, `density_denom` |
+| **Weight** | Controls the *relative importance* of HFE vs. density after normalization | `hfe_weight`, `density_weight` |
+
+#### Scale denominators (`hfe_denom`, `density_denom`)
+
+The denominator converts each raw residual (in its physical unit) into a dimensionless number. parmOPT computes sensible defaults automatically — the same convention used by ForceBalance:
+
+| Property | Default `Denom` | Rationale |
+|----------|-----------------|-----------|
+| HFE | `sqrt(\|expt_hfe\|)` | e.g. expt\_hfe = −5 kcal/mol → denom ≈ 2.24 kcal/mol |
+| Density (single T) | `sqrt(\|expt_density\|)` | e.g. expt\_density = 997 kg/m³ → denom ≈ 31.6 kg/m³ |
+| Density (multi T) | `std_dev(expt_densities)` | spread of the experimental values across temperatures |
+
+With these defaults a typical HFE error of ~1 kcal/mol and a typical density error of ~10 kg/m³ both produce a normalized residual of ~0.3–0.5, so `hfe_weight = density_weight = 1.0` gives a balanced starting point **without any manual tuning**.
+
+Override the defaults only when you want to lock the normalization scale across multiple runs (e.g. to make cost values comparable between different optimization attempts):
 
 ```yaml
-hfe_weight: 1.0
-density_weight: 0.1
+hfe_denom: 2.24      # kcal/mol — fix at sqrt(5) regardless of expt_hfe
+density_denom: 31.6  # kg/m³   — fix at sqrt(997) regardless of expt_density
 ```
 
-If the optimized parameters drift too far from the experimental density while
-fitting HFE well (or vice versa), increase the weight of the lagging property by
-a factor of 2–5 and rerun. Monitor both residuals in `parmOPT.log` at each step
-to guide the adjustment.
+#### Relative importance weights (`hfe_weight`, `density_weight`)
+
+Once the denominators have put both residuals on the same scale, the weights express how much you care about one property relative to the other. With the default denominators, `hfe_weight = density_weight = 1.0` is a reasonable starting point for most organic solvents.
+
+Adjust when the optimization consistently sacrifices one property for the other:
+
+- If the optimizer fits HFE well but density drifts — increase `density_weight` (or decrease `hfe_weight`).
+- If density is well reproduced but HFE error is large — increase `hfe_weight`.
+- A factor-of-2 change in a weight shifts the cost ratio by 4×; start with small adjustments.
+
+The `WtNormRes` column in `parmOPT.log` shows `weight × Δ / denom` for each property at every optimizer step. Watch this column to see which property is driving the cost.
+
+**Practical starting point (works for most solvents):**
+
+```yaml
+# Let denom defaults handle unit normalization; use equal weights.
+hfe_weight: 1.0
+density_weight: 1.0
+```
+
+If you have a strong prior on acceptable errors you can also set weights as inverse acceptable errors *after* normalization. For example, if you want a 0.5 kcal/mol HFE error to cost the same as a 5 kg/m³ density error, and the defaults give `hfe_denom ≈ 2.24` and `density_denom ≈ 31.6`:
+
+```
+# normalized acceptable errors
+hfe_threshold   = 0.5 / 2.24 ≈ 0.22
+density_threshold = 5 / 31.6 ≈ 0.16
+
+# set weights so both thresholds give cost contribution ≈ 1
+hfe_weight     = 1 / 0.22 ≈ 4.5   → round to 5.0
+density_weight = 1 / 0.16 ≈ 6.3   → round to 6.0
+```
 
 ### Multi-temperature density fitting
 
