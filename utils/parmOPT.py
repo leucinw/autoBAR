@@ -926,6 +926,18 @@ def write_prm(params, fname):
             f.write(line)
 
 
+def write_final_prm(params):
+    """Write optimized parameters to ``<param_file>.final``.
+
+    The output file is a standalone parameter file containing the snapshot
+    plus the optimized opt lines — suitable for use in subsequent simulations.
+    """
+    param_file = _config["param_file"]
+    fname = param_file + ".final"
+    write_prm(params, fname)
+    log.info("Optimized parameters written to %s", fname)
+
+
 def jacobian_fd(params):
     """Compute Jacobian of shape (1 + n_temps, n_params).
 
@@ -1410,6 +1422,8 @@ def main():
     log.info(f"Message: {result.message}")
     log.info(f"Optimal parameters: {result.x}")
     log.info(f"Cost (sum of squared residuals): {2 * result.cost}")
+
+    write_final_prm(result.x)
 
 if __name__ == "__main__":
     main()
