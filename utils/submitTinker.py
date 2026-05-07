@@ -86,10 +86,9 @@ def ssh_output(node, remote_cmd, timeout=SSH_TIMEOUT):
     Returns an empty list (never raises) so callers can treat a
     failed / unreachable node the same as an idle one.
     """
-    cmd = f'ssh -o StrictHostKeyChecking=no {node} "{remote_cmd}"'
     try:
         result = subprocess.run(
-            cmd, shell=True, executable='/bin/bash',
+            ['ssh', '-o', 'StrictHostKeyChecking=no', node, remote_cmd],
             capture_output=True, text=True, timeout=timeout,
         )
         if result.returncode != 0:
@@ -230,9 +229,12 @@ def read_node_list(is_pyscf_job=False):
 
 def _ssh_submit(node, remote_cmd):
     """Fire-and-forget a command on *node* via SSH."""
-    full_cmd = f"ssh -o StrictHostKeyChecking=no {node} '{remote_cmd}' &"
     log.info("  --> %s : %s", node, remote_cmd)
-    subprocess.run(full_cmd, shell=True, executable='/bin/bash')
+    subprocess.Popen(
+        ['ssh', '-o', 'StrictHostKeyChecking=no', node, remote_cmd],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def submit_round(pending_cmds, job_type, gpu_nodes, cpu_nodes, nproc_required):
