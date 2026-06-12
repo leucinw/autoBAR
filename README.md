@@ -11,19 +11,28 @@ autoBAR is a lightweight automation tool for running alchemical free energy simu
 
 | Category | Requirements |
 |----------|-------------|
-| **Python** (≥ 3.8) | `numpy`, `scipy ≥ 1.16`, `ruamel.yaml < 0.18` |
+| **Python** (≥ 3.8) | `numpy`, `scipy` (only for `parmOPT.py`), `ruamel.yaml` (both `< 0.18` and `≥ 0.18` are supported) |
 | **Simulation Software** | [Tinker](https://dasher.wustl.edu/tinker/) (CPU) and [Tinker9](https://github.com/TinkerTools/tinker9) (GPU) |
+
+A conda environment file is provided:
+
+```bash
+conda env create -f environment.yml
+conda activate autobar
+```
 
 ## Project Structure
 
 ```
 autoBAR/
 ├── autoBAR.py              # Main driver script
+├── environment.yml         # Conda environment specification
+├── tests/                  # Test suite
 ├── dat/                    # Default configuration files
 │   ├── settings.yaml       # Example settings template
 │   ├── gas.key             # Default gas-phase key file
 │   ├── liquid.key          # Default liquid-phase key file
-│   ├── orderparams_courser # Coarser lambda schedule (17 windows)
+│   ├── orderparams_courser # Coarser lambda schedule (18 windows)
 │   ├── orderparams_default # Standard lambda schedule (26 windows)
 │   └── tinker.env          # Tinker executable paths
 ├── utils/                  # Utility modules
@@ -74,7 +83,8 @@ Place the following four files in your working directory:
 Key settings to configure (see [`dat/settings.yaml`](dat/settings.yaml) for the full reference):
 
 ```yaml
-# Lambda schedule: "courser" (17 windows) or "default" (26 windows)
+# Lambda schedule: "courser" (18 windows) or "default" (26 windows)
+# (the value is case-insensitive; "courser" is the literal key the code expects)
 lambda_window: courser
 
 # Input files
@@ -97,6 +107,11 @@ gas_md_temperature: 300.0     # K
 node_list:
   - node01
   - node02
+
+# One-step perturbation (only used when a "<parameters>_XX" file exists):
+#   YES  → reuse the reference trajectory  → true one-step FEP
+#   NO   → re-run dynamics for a new state → BAR (see the section below)
+copy_arc_for_perturb: YES
 ```
 
 ## Usage
@@ -174,16 +189,36 @@ examples/Phenol-HFE/
 └── result.txt          # Reference output
 ```
 
-## One-Step Free Energy Perturbation (FEP)
+## One-Step Perturbation (FEP or BAR)
 
-autoBAR supports one-step perturbation for evaluating small parameter changes:
+autoBAR can evaluate the free-energy difference to one or more perturbed end states
+(e.g. small force-field parameter changes) without redefining the lambda schedule:
 
-1. Place one or more `{parameters}.prm_XX` files (where `XX` = `01` to `99`) in the working directory alongside your main `.prm` file
-2. No changes to `settings.yaml` are needed — autoBAR detects the files automatically
-3. Each perturbed parameter file defines a new end state
-4. Results are reported as `FEP_001`, `FEP_002`, etc. in `result.txt`
+1. Place one or more perturbed parameter files named `<parameters>_XX` (where `XX` = `01` to
+   `99`) in the working directory next to your main parameter file. For example, if
+   `parameters: forcefield.prm`, the perturbed files are `forcefield.prm_01`, `forcefield.prm_02`, …
+2. Each perturbed file defines a new end state, appended to the lambda schedule as an extra window.
+3. No other change to `settings.yaml` is required — autoBAR detects the files automatically.
+4. Results are reported as `FEP_001`, `FEP_002`, … in `result.txt`.
 
-This is useful for sensitivity analysis or parameter optimization (see `utils/parmOPT.py`).
+### FEP vs. BAR — set by `copy_arc_for_perturb`
+
+The estimator used for the perturbation depends on whether the reference and perturbed
+states share a trajectory, which is controlled by the `copy_arc_for_perturb` setting:
+
+| `copy_arc_for_perturb` | Trajectory used for the perturbed state | Estimator |
+|------------------------|-----------------------------------------|-----------|
+| `YES` (default) | Reuses the reference end-state trajectory (the **same** `.arc` is symlinked for both states) | **One-step FEP** (Zwanzig exponential averaging over a single ensemble) |
+| `NO` | Re-runs dynamics with the perturbed parameters to generate a **separate** `.arc` | **BAR** (two independent trajectories, one per state) |
+
+In other words, the result is true one-step FEP **only when the same trajectory file is
+reused** (`copy_arc_for_perturb: YES`). When a fresh trajectory is simulated for the
+perturbed state, the calculation is an ordinary two-state BAR — even though the column in
+`result.txt` is still labeled `FEP_XXX`.
+
+`YES` is much cheaper (no extra MD) and is appropriate for small parameter changes where the
+two states overlap well; `NO` is more robust for larger perturbations. Both modes are useful
+for sensitivity analysis and parameter optimization (see `utils/parmOPT.py`).
 
 ## Parameter Optimization
 
@@ -193,7 +228,7 @@ The `utils/parmOPT.py` utility optimizes force field parameters to simultaneousl
 python utils/parmOPT.py
 ```
 
-It uses `scipy.optimize.least_squares` (TRF, soft-L1 loss) with a custom Jacobian. The HFE row is evaluated by one-step FEP via autoBAR; each density row uses the fluctuation formula (Wang et al. 2013, Eq. 4) applied to the most recent per-temperature trajectory, with all `$ANALYZE9` jobs submitted to the GPU cluster in parallel alongside the autoBAR HFE run.
+It uses `scipy.optimize.least_squares` (TRF, soft-L1 loss) with a custom Jacobian. The HFE row is evaluated via autoBAR's one-step perturbation: each trial point writes a perturbed `<parameters>_01` file and runs `autoBAR.py auto`, so with `copy_arc_for_perturb: YES` (the recommended setting here) the HFE change is obtained by one-step FEP over the reference trajectory. Each density row uses the fluctuation formula (Wang et al. 2013, Eq. 4) applied to the most recent per-temperature trajectory, with all `$ANALYZE9` jobs submitted to the GPU cluster in parallel alongside the autoBAR HFE run.
 
 ### Required settings
 
@@ -423,7 +458,7 @@ For hydration free energy calculations:
 
 | Setting | Value | Notes |
 |---------|-------|-------|
-| `lambda_window` | `courser` | 17 windows — good accuracy with less cost |
+| `lambda_window` | `courser` | 18 windows — good accuracy with less cost |
 | `liquid_md_total_time` | 1.25 ns | Last 80% (1 ns) used in BAR analysis |
 | `liquid_md_time_step` | 2.0 fs | Works well with RESPA integrator |
 | `gas_md_total_time` | 1.25 ns | Last 80% (1 ns) used in BAR analysis |
