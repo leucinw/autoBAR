@@ -32,7 +32,7 @@ _config = {}
 log = logging.getLogger(__name__)
 
 
-def _log_step_table(step, params, hfe, densities):
+def _log_step_table(step, params, hfe, densities, dimer_eints=None, dimeropt_bind=None):
     """Log a per-step summary table comparing current vs. target properties."""
     expt_hfe = _config["expt_hfe"]
     expt_densities = _config["expt_densities"]
@@ -70,6 +70,33 @@ def _log_step_table(step, params, hfe, densities):
             f"{label:<{col[0]}}"
             f"{rho_tgt:>{col[1]}.3f}"
             f"{rho:>{col[2]}.3f}"
+            f"{diff:>{col[3]+1}.3f}"
+            f"{wt_res:>{col[4]}.4f}"
+        )
+    if dimer_eints is not None and _config.get("dimer_enabled"):
+        dw = _config["dimer_weight"]
+        dd = _config["dimer_denom"]
+        for p, e in zip(_config["dimer_points"], dimer_eints):
+            diff = e - p["qm"]
+            wt_res = dw * p["weight"] * diff / dd
+            wt_res_list.append(wt_res)
+            label = f"Dimer {p['tag']} (w={p['weight']:g})"
+            rows.append(
+                f"{label:<{col[0]}}"
+                f"{p['qm']:>{col[1]}.3f}"
+                f"{e:>{col[2]}.3f}"
+                f"{diff:>{col[3]+1}.3f}"
+                f"{wt_res:>{col[4]}.4f}"
+            )
+    if dimeropt_bind is not None and _config.get("dimeropt_enabled"):
+        tgt = _config["dimeropt_target"]
+        diff = dimeropt_bind - tgt
+        wt_res = _config["dimeropt_weight"] * diff / _config["dimeropt_denom"]
+        wt_res_list.append(wt_res)
+        rows.append(
+            f"{'Dimer bind (opt geom)':<{col[0]}}"
+            f"{tgt:>{col[1]}.3f}"
+            f"{dimeropt_bind:>{col[2]}.3f}"
             f"{diff:>{col[3]+1}.3f}"
             f"{wt_res:>{col[4]}.4f}"
         )
@@ -800,6 +827,214 @@ def _density_jacobian_col(rho_frames, E_plus, E_minus, beta, diff_step):
 
 
 # ---------------------------------------------------------------------------
+# Dimer interaction-energy target (optional 3rd reference)
+#   E_int = E_dimer - E_mon1 - E_mon2  via Tinker AMOEBA `analyze E`,
+#   compared per-point against QM reference energies (kcal/mol).
+#   Cheap (gas-phase small clusters) -> evaluated directly, and its Jacobian
+#   rows are obtained by central finite difference on the same analyze calls.
+# ---------------------------------------------------------------------------
+def _read_txyz_atoms(path):
+    """Parse a Tinker .xyz -> [[idx,sym,x,y,z,type,[bonded 1-based ...]], ...]."""
+    with open(path) as f:
+        lines = f.read().splitlines()
+    n = int(lines[0].split()[0])
+    atoms = []
+    for ln in lines[1:1 + n]:
+        s = ln.split()
+        atoms.append([int(s[0]), s[1], float(s[2]), float(s[3]), float(s[4]),
+                      int(s[5]), [int(b) for b in s[6:]]])
+    return atoms
+
+
+def _write_txyz_atoms(path, atoms, title="monomer"):
+    with open(path, 'w') as f:
+        f.write(f"{len(atoms)}  {title}\n")
+        for i, a in enumerate(atoms):
+            _, sym, x, y, z, typ, bonds = a
+            conn = ' '.join(str(b) for b in bonds)
+            f.write(f"{i+1:>3} {sym:<3} {x:12.6f} {y:12.6f} {z:12.6f} {typ:>5}  {conn}\n")
+
+
+def _split_dimer_monomers(atoms, n1):
+    """Split a dimer (first n1 atoms = frag1, rest = frag2); renumber bonds."""
+    def build(sel):
+        old2new = {old0 + 1: k + 1 for k, old0 in enumerate(sel)}   # 1-based map
+        mon = []
+        for old0 in sel:
+            _, sym, x, y, z, typ, bonds = atoms[old0]
+            nb = [old2new[b] for b in bonds if b in old2new]
+            mon.append([old2new[old0 + 1], sym, x, y, z, typ, nb])
+        return mon
+    return build(list(range(0, n1))), build(list(range(n1, len(atoms))))
+
+
+def _dimer_write_key(prm_file):
+    key = os.path.join(_config["dimer_workdir"], 'dimer.key')
+    with open(key, 'w') as f:
+        f.write(f"parameters {os.path.abspath(prm_file)}\npolar-eps 0.00001\n")
+    return key
+
+
+def _analyze_dimer_energy(txyz, key):
+    exe = _config["dimer_analyze"]
+    cwd = _config.get("dimer_workdir") or _config.get("dimeropt_workdir")
+    out = subprocess.run([exe, txyz, '-k', key, 'E'],
+                         capture_output=True, text=True, cwd=cwd).stdout
+    for line in out.splitlines():
+        if 'Total Potential Energy' in line:
+            for t in line.replace(':', ' ').split():
+                try:
+                    return float(t)
+                except ValueError:
+                    continue
+    raise RuntimeError(f"analyze produced no energy for {txyz}\n{out[-400:]}")
+
+
+def _dimer_eval(prm_file):
+    """AMOEBA E_int = E_dimer - E_mon1 - E_mon2 (kcal/mol) per point for prm_file."""
+    key = _dimer_write_key(prm_file)
+    eints = []
+    for p in _config["dimer_points"]:
+        Ed = _analyze_dimer_energy(p["dimer"], key)
+        E1 = _analyze_dimer_energy(p["mon1"], key)
+        E2 = _analyze_dimer_energy(p["mon2"], key)
+        eints.append(Ed - E1 - E2)
+    return np.array(eints)
+
+
+def _dimer_residuals(eints):
+    dw, dd = _config["dimer_weight"], _config["dimer_denom"]
+    return np.array([dw * p["weight"] * (e - p["qm"]) / dd
+                     for p, e in zip(_config["dimer_points"], eints)])
+
+
+def _dimer_setup(settings):
+    """Parse the optional dimer target; pre-build monomer .xyz (geometry-only)."""
+    raw = settings.get("dimer_data")
+    if not raw:
+        _config["dimer_enabled"] = False
+        return
+    if isinstance(raw, str):
+        raw = [raw]
+    workdir = os.path.abspath(settings.get("dimer_dir", "dimer_fit"))
+    os.makedirs(workdir, exist_ok=True)
+    n1 = int(settings.get("dimer_frag1_natoms", 2))
+    exe = settings.get("dimer_analyze") or os.environ.get("ANALYZE8")
+    if not exe:
+        sys.exit("[Error] dimer target: $ANALYZE8 unset and no 'dimer_analyze' given")
+    points = []
+    for entry in raw:
+        toks = entry.split()
+        dpath = os.path.abspath(toks[0])
+        qm = float(toks[1])
+        w = float(toks[2]) if len(toks) > 2 else 1.0
+        atoms = _read_txyz_atoms(dpath)
+        mon1, mon2 = _split_dimer_monomers(atoms, n1)
+        tag = os.path.splitext(os.path.basename(dpath))[0]
+        d_local = os.path.join(workdir, f"{tag}_dimer.xyz")
+        m1_local = os.path.join(workdir, f"{tag}_mon1.xyz")
+        m2_local = os.path.join(workdir, f"{tag}_mon2.xyz")
+        _write_txyz_atoms(d_local, atoms, f"{tag} dimer")
+        _write_txyz_atoms(m1_local, mon1, f"{tag} mon1")
+        _write_txyz_atoms(m2_local, mon2, f"{tag} mon2")
+        points.append({"tag": tag, "dimer": d_local, "mon1": m1_local,
+                       "mon2": m2_local, "qm": qm, "weight": w})
+    qms = np.array([p["qm"] for p in points])
+    denom_default = float(np.sqrt(np.mean(qms ** 2))) if len(qms) else 1.0
+    _config.update({
+        "dimer_enabled": True,
+        "dimer_points": points,
+        "dimer_weight": float(settings.get("dimer_weight", 1.0)),
+        "dimer_denom": float(settings.get("dimer_denom", denom_default)),
+        "dimer_workdir": workdir,
+        "dimer_analyze": exe,
+    })
+
+
+# ---------------------------------------------------------------------------
+# Dimer-OPTIMIZATION binding-energy target (optional).
+#   Let AMOEBA relax the dimer with the trial params (its own geometry), then
+#   E_bind = E_dimer(opt) - E_mon1 - E_mon2, compared to a QM binding energy
+#   (De). Monomer intramolecular energies are independent of the fitted vdW
+#   (1-2 vdW excluded; water is a different type) so they are cached once.
+# ---------------------------------------------------------------------------
+def _tinker_minimize(exe_min, start_xyz, key, workdir, grad):
+    for stale in (start_xyz + '_2', start_xyz + '_3'):
+        if os.path.exists(stale):
+            os.remove(stale)
+    subprocess.run([exe_min, start_xyz, '-k', key, str(grad)],
+                   capture_output=True, text=True, cwd=workdir)
+    opt = start_xyz + '_2'
+    if not os.path.isfile(opt):
+        raise RuntimeError(f"minimize produced no {opt}")
+    return opt
+
+
+def _dimeropt_write_key(prm_file):
+    key = os.path.join(_config["dimeropt_workdir"], 'dopt.key')
+    with open(key, 'w') as f:
+        f.write(f"parameters {os.path.abspath(prm_file)}\npolar-eps 0.00001\n")
+    return key
+
+
+def _dimeropt_eval(prm_file):
+    """AMOEBA-relax the dimer with prm_file and return E_bind (kcal/mol)."""
+    wd = _config["dimeropt_workdir"]
+    exe_min = _config["dimeropt_minimize"]
+    grad = _config["dimeropt_grad"]
+    key = _dimeropt_write_key(prm_file)
+    d_opt = _tinker_minimize(exe_min, _config["dimeropt_start"], key, wd, grad)
+    Ed = _analyze_dimer_energy(d_opt, key)   # reuse the analyze helper
+    return Ed - _config["dimeropt_emon"]
+
+
+def _dimeropt_residual(ebind):
+    return (_config["dimeropt_weight"] * (ebind - _config["dimeropt_target"])
+            / _config["dimeropt_denom"])
+
+
+def _dimeropt_setup(settings):
+    """Parse the optional dimer-optimization binding-energy target."""
+    start = settings.get("dimeropt_start")
+    if not start:
+        _config["dimeropt_enabled"] = False
+        return
+    wd = os.path.abspath(settings.get("dimeropt_dir", "dimeropt_fit"))
+    os.makedirs(wd, exist_ok=True)
+    exe_min = settings.get("dimeropt_minimize") or os.environ.get("MINIMIZE8")
+    exe_ana = settings.get("dimeropt_analyze") or os.environ.get("ANALYZE8")
+    if not (exe_min and exe_ana):
+        sys.exit("[Error] dimeropt: need $MINIMIZE8/$ANALYZE8 or explicit paths")
+    _config["dimer_analyze"] = _config.get("dimer_analyze", exe_ana)  # analyze helper
+    n1 = int(settings.get("dimeropt_frag1_natoms", 2))
+    grad = float(settings.get("dimeropt_grad", 0.01))
+    atoms = _read_txyz_atoms(os.path.abspath(start))
+    mon1, mon2 = _split_dimer_monomers(atoms, n1)
+    d_local = os.path.join(wd, "dopt_dimer.xyz")
+    m1 = os.path.join(wd, "dopt_mon1.xyz")
+    m2 = os.path.join(wd, "dopt_mon2.xyz")
+    _write_txyz_atoms(d_local, atoms, "dimeropt start")
+    _write_txyz_atoms(m1, mon1, "mon1 start")
+    _write_txyz_atoms(m2, mon2, "mon2 start")
+    _config.update({
+        "dimeropt_enabled": True,
+        "dimeropt_start": d_local,
+        "dimeropt_workdir": wd,
+        "dimeropt_minimize": exe_min,
+        "dimeropt_grad": grad,
+        "dimeropt_target": float(settings["dimeropt_target"]),
+        "dimeropt_weight": float(settings.get("dimeropt_weight", 1.0)),
+        "dimeropt_denom": float(settings.get("dimeropt_denom",
+                                             np.sqrt(abs(float(settings["dimeropt_target"]))))),
+    })
+    # Cache the (vdW-independent) relaxed monomer energies once.
+    key = _dimeropt_write_key(_config["param_file_snapshot"])
+    e1 = _analyze_dimer_energy(_tinker_minimize(exe_min, m1, key, wd, grad), key)
+    e2 = _analyze_dimer_energy(_tinker_minimize(exe_min, m2, key, wd, grad), key)
+    _config["dimeropt_emon"] = e1 + e2
+
+
+# ---------------------------------------------------------------------------
 # Core optimizer functions
 # ---------------------------------------------------------------------------
 
@@ -883,13 +1118,22 @@ def model_func(params):
 
     _config["rho_frames_list"] = rho_frames_list
 
-    _log_step_table(_config["step"], params, hfe, densities)
+    # --- Dimer interaction energies at the current params (cheap, gas-phase) ---
+    dimer_eints = _dimer_eval(current_prm) if _config.get("dimer_enabled") else None
+    # --- Dimer-optimization binding energy (AMOEBA relaxes its own geometry) ---
+    dimeropt_bind = _dimeropt_eval(current_prm) if _config.get("dimeropt_enabled") else None
+
+    _log_step_table(_config["step"], params, hfe, densities, dimer_eints, dimeropt_bind)
 
     hfe_denom = _config["hfe_denom"]
     density_denom = _config["density_denom"]
     residuals = [hfe_weight * (hfe - expt_hfe) / hfe_denom]
     for rho, rho_tgt, d_weight in zip(densities, expt_densities, density_weights):
         residuals.append(d_weight * (rho - rho_tgt) / density_denom)
+    if dimer_eints is not None:
+        residuals.extend(_dimer_residuals(dimer_eints).tolist())
+    if dimeropt_bind is not None:
+        residuals.append(_dimeropt_residual(dimeropt_bind))
     residuals = np.array(residuals)
 
     current_cost = float(np.dot(residuals, residuals))
@@ -1083,6 +1327,46 @@ def jacobian_fd(params):
                 beta,
                 diff_step,
             ) / density_denom
+
+    # --- Dimer Jacobian rows (central FD on the cheap analyze calls) ---
+    if _config.get("dimer_enabled"):
+        Nd = len(_config["dimer_points"])
+        dw = _config["dimer_weight"]
+        dd = _config["dimer_denom"]
+        weights = np.array([p["weight"] for p in _config["dimer_points"]])
+        Jd = np.zeros((Nd, n_params))
+        prm_p = param_file + ".dimerfd_p"
+        prm_m = param_file + ".dimerfd_m"
+        for j in range(n_params):
+            pp = params.copy(); pp[j] += diff_step
+            pm = params.copy(); pm[j] -= diff_step
+            write_prm(pp, prm_p)
+            write_prm(pm, prm_m)
+            e_p = _dimer_eval(prm_p)
+            e_m = _dimer_eval(prm_m)
+            Jd[:, j] = dw * weights * (e_p - e_m) / (2.0 * diff_step) / dd
+        Path(prm_p).unlink(missing_ok=True)
+        Path(prm_m).unlink(missing_ok=True)
+        J = np.vstack([J, Jd])
+
+    # --- Dimer-optimization binding-energy Jacobian row (central FD) ---
+    if _config.get("dimeropt_enabled"):
+        gw = _config["dimeropt_weight"]
+        gd = _config["dimeropt_denom"]
+        Jr = np.zeros((1, n_params))
+        prm_p = param_file + ".doptfd_p"
+        prm_m = param_file + ".doptfd_m"
+        for j in range(n_params):
+            pp = params.copy(); pp[j] += diff_step
+            pm = params.copy(); pm[j] -= diff_step
+            write_prm(pp, prm_p)
+            write_prm(pm, prm_m)
+            b_p = _dimeropt_eval(prm_p)
+            b_m = _dimeropt_eval(prm_m)
+            Jr[0, j] = gw * (b_p - b_m) / (2.0 * diff_step) / gd
+        Path(prm_p).unlink(missing_ok=True)
+        Path(prm_m).unlink(missing_ok=True)
+        J = np.vstack([J, Jr])
 
     return J
 
@@ -1359,6 +1643,11 @@ def main():
         "neat_liquid_sh_names": sh_names,
     })
 
+    # Optional 3rd reference: dimer interaction energies (backward compatible).
+    _dimer_setup(settings)
+    # Optional: dimer-optimization binding energy at AMOEBA's own geometry.
+    _dimeropt_setup(settings)
+
     steps_per_frame = round(md_t_out * 1000.0 / md_dt)
     total_md_frames = n_equil + n_production
     total_md_steps = total_md_frames * steps_per_frame
@@ -1388,6 +1677,21 @@ def main():
     log.info(f'equil: {equil_time} ns ({n_equil} frames)  '
              f'production: {production_time} ns ({n_production} frames)  '
              f'total MD steps per call: {total_md_steps}')
+    if _config.get("dimer_enabled"):
+        log.info(f'dimer target: {len(_config["dimer_points"])} points  '
+                 f'dimer_weight: {_config["dimer_weight"]}  '
+                 f'dimer_denom: {_config["dimer_denom"]:.4g} kcal/mol  '
+                 f'workdir: {_config["dimer_workdir"]}')
+        for p in _config["dimer_points"]:
+            log.info(f'  {p["tag"]}: QM E_int={p["qm"]:.3f} kcal/mol  weight={p["weight"]:g}')
+    else:
+        log.info('dimer target: disabled (no dimer_data in settings.yaml)')
+    if _config.get("dimeropt_enabled"):
+        log.info(f'dimeropt binding target: De={_config["dimeropt_target"]:.3f} kcal/mol  '
+                 f'weight={_config["dimeropt_weight"]}  denom={_config["dimeropt_denom"]:.4g}  '
+                 f'E_mon(cached)={_config["dimeropt_emon"]:.4f}  workdir: {_config["dimeropt_workdir"]}')
+    else:
+        log.info('dimeropt binding target: disabled')
 
     # Cleanup covers every perturb_idx the optimizer could ever create this
     # run: the model point (idx=1 on initial, idx=1 reused on trial) plus
