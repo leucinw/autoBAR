@@ -67,6 +67,17 @@ def _ene_complete(enepath):
 
 
 
+def _bar_step_done(barpath, enepath, shpath):
+  """Return True if this BAR window already has all of its output files.
+
+  Normally the '.ene' must contain the BAR convergence line. With skipcheck the
+  user has asserted the '.ene' files are complete, so existence is enough.
+  """
+  if not (os.path.isfile(barpath) and os.path.isfile(shpath)):
+    return False
+  return os.path.isfile(enepath) if skipcheck else _ene_complete(enepath)
+
+
 def _remaining_steps(arcpath, total_steps, steps_per_snapshot):
   """Return (remaining_steps, existing_snapshots) given an existing arc file.
 
@@ -263,20 +274,21 @@ def dynamic():
 
 
 def bar():
-  print(YELLOW + " Checking the completeness of the MD trajectories, please wait... " + ENDC)
+  if not skipcheck:
+    print(YELLOW + " Checking the completeness of the MD trajectories, please wait... " + ENDC)
 
   checkorderparams = orderparams[:-1] if copyarcforperturb else orderparams
   if inputaction == "auto":
     proceed = False
     while not proceed:
-      proceed, phase_simsnapshot = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir, verbose)
+      proceed, phase_simsnapshot = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir, verbose, skipcheck)
       if proceed:
         break
       now = datetime.now().strftime("%b %d %Y %H:%M:%S")
       print(YELLOW + f" [{now}] Waiting for dynamic jobs to finish ..." + ENDC)
       time.sleep(checkingtime)
   else:
-    proceed, phase_simsnapshot = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir, verbose)
+    proceed, phase_simsnapshot = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir, verbose, skipcheck)
 
   if not proceed:
     return
@@ -332,17 +344,20 @@ def bar():
         barpath = os.path.join(barfiledir, barfile)
         enepath = os.path.join(barfiledir, enefile)
         shpath  = os.path.join(barfiledir, liquidbarname)
-        if os.path.isfile(barpath) and os.path.isfile(shpath) and not _bar_sh_steps_match(shpath, startsnapshot, liquidtotalsnapshot):
-          print(YELLOW + f" [Regen] {barfile}: snapshot range changed, removing stale .bar/.ene" + ENDC)
-          for p in [barpath, enepath]:
-            if os.path.isfile(p): os.remove(p)
+        # Staleness detection deletes existing .bar/.ene; skip it when the user
+        # has vouched for those files.
+        if not skipcheck:
+          if os.path.isfile(barpath) and os.path.isfile(shpath) and not _bar_sh_steps_match(shpath, startsnapshot, liquidtotalsnapshot):
+            print(YELLOW + f" [Regen] {barfile}: snapshot range changed, removing stale .bar/.ene" + ENDC)
+            for p in [barpath, enepath]:
+              if os.path.isfile(p): os.remove(p)
 
-        if os.path.isfile(barpath) and _bar_file_snapshot_count(barpath) != liquidtotalsnapshot:
-          print(YELLOW + f" [Regen] {barfile}: .bar is from a different run ({_bar_file_snapshot_count(barpath)} vs {liquidtotalsnapshot} snapshots), removing stale .bar/.ene" + ENDC)
-          for p in [barpath, enepath]:
-            if os.path.isfile(p): os.remove(p)
+          if os.path.isfile(barpath) and _bar_file_snapshot_count(barpath) != liquidtotalsnapshot:
+            print(YELLOW + f" [Regen] {barfile}: .bar is from a different run ({_bar_file_snapshot_count(barpath)} vs {liquidtotalsnapshot} snapshots), removing stale .bar/.ene" + ENDC)
+            for p in [barpath, enepath]:
+              if os.path.isfile(p): os.remove(p)
 
-        bar_done = os.path.isfile(barpath) and _ene_complete(enepath) and os.path.isfile(shpath)
+        bar_done = _bar_step_done(barpath, enepath, shpath)
         if not bar_done:
           if os.path.isfile(barpath) and verbose > 0:
             print(YELLOW + f" [Rerun] {barfile}: .bar exists but .ene missing/incomplete, resubmitting" + ENDC)
@@ -368,17 +383,20 @@ def bar():
           barpath = os.path.join(barfiledir, barfile)
           enepath = os.path.join(barfiledir, enefile)
           shpath  = os.path.join(barfiledir, gasbarname)
-          if os.path.isfile(barpath) and os.path.isfile(shpath) and not _bar_sh_steps_match(shpath, startsnapshot, gastotalsnapshot):
-            print(YELLOW + f" [Regen] {barfile}: snapshot range changed, removing stale .bar/.ene" + ENDC)
-            for p in [barpath, enepath]:
-              if os.path.isfile(p): os.remove(p)
+          # Staleness detection deletes existing .bar/.ene; skip it when the user
+          # has vouched for those files.
+          if not skipcheck:
+            if os.path.isfile(barpath) and os.path.isfile(shpath) and not _bar_sh_steps_match(shpath, startsnapshot, gastotalsnapshot):
+              print(YELLOW + f" [Regen] {barfile}: snapshot range changed, removing stale .bar/.ene" + ENDC)
+              for p in [barpath, enepath]:
+                if os.path.isfile(p): os.remove(p)
 
-          if os.path.isfile(barpath) and _bar_file_snapshot_count(barpath) != gastotalsnapshot:
-            print(YELLOW + f" [Regen] {barfile}: .bar is from a different run ({_bar_file_snapshot_count(barpath)} vs {gastotalsnapshot} snapshots), removing stale .bar/.ene" + ENDC)
-            for p in [barpath, enepath]:
-              if os.path.isfile(p): os.remove(p)
+            if os.path.isfile(barpath) and _bar_file_snapshot_count(barpath) != gastotalsnapshot:
+              print(YELLOW + f" [Regen] {barfile}: .bar is from a different run ({_bar_file_snapshot_count(barpath)} vs {gastotalsnapshot} snapshots), removing stale .bar/.ene" + ENDC)
+              for p in [barpath, enepath]:
+                if os.path.isfile(p): os.remove(p)
 
-          bar_done = os.path.isfile(barpath) and _ene_complete(enepath) and os.path.isfile(shpath)
+          bar_done = _bar_step_done(barpath, enepath, shpath)
           if not bar_done:
             if os.path.isfile(barpath) and verbose > 0:
               print(YELLOW + f" [Rerun] {barfile}: .bar exists but .ene missing/incomplete, resubmitting" + ENDC)
@@ -414,11 +432,20 @@ def bar():
 
 
 def result():
-  print(YELLOW + " Checking the completeness of the BAR analysis ..." + ENDC)
-  proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes, fep_gasperturbsteps, fep_gasenes, fep_liquidperturbsteps, fep_liquidenes = checkbar(phases, orderparams, homedir, ignoregas, verbose, liquidtotalsnapshot, gastotalsnapshot)
+  if not skipcheck:
+    print(YELLOW + " Checking the completeness of the BAR analysis ..." + ENDC)
+  proceed, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes, fep_gasperturbsteps, fep_gasenes, fep_liquidperturbsteps, fep_liquidenes = checkbar(phases, orderparams, homedir, ignoregas, verbose, liquidtotalsnapshot, gastotalsnapshot, skipcheck)
 
   if not proceed:
     return
+
+  # Nothing verified the '.ene' files exist, so report a missing one clearly
+  # instead of letting the reader below raise a traceback.
+  if skipcheck:
+    missing = [e for e in gasenes + liquidenes + fep_gasenes + fep_liquidenes if not os.path.isfile(e)]
+    if missing:
+      sys.exit(RED + f"[Error] Completeness check was skipped but {len(missing)} '.ene' file(s)"
+               f" are missing, e.g. {missing[0]}" + ENDC)
 
   FEgas, Errgas = [], []
   FEliquid, Errliquid = [], []
@@ -493,15 +520,27 @@ def _load_settings():
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument('act', help="Actions to take.", choices=['setup', 'dynamic', 'bar', 'result', 'auto'], type=str.lower)
+  parser.add_argument('-s', '--skip-check', dest='skipcheck', action='store_true',
+                      help="Skip the completeness check of the '.arc' trajectories and '.ene' free energy "
+                           "files. Only use this when you are certain those files exist and are complete; "
+                           "can also be set with 'skip_completeness_check: True' in settings.yaml.")
 
   # global settings
+  args = vars(parser.parse_args())
   global inputaction
-  inputaction = vars(parser.parse_args())['act']
+  inputaction = args['act']
   global rootdir, homedir
   rootdir, homedir, FEsimsettings = _load_settings()
 
   global verbose
   verbose = int(FEsimsettings.get('verbose', 1))
+
+  # The command line flag wins; settings.yaml provides the persistent default.
+  global skipcheck
+  skipcheck = args['skipcheck'] or bool(FEsimsettings.get('skip_completeness_check', False))
+  if skipcheck:
+    print(YELLOW + " [Warning] Completeness check of '.arc'/'.ene' files is DISABLED;"
+          " assuming they all exist and are complete" + ENDC)
 
   global prm, checkingtime
   lig = FEsimsettings['gas_xyz']
@@ -667,14 +706,16 @@ if __name__ == "__main__":
     # check if dynamic is complete
     dynamic_good = False
     while not dynamic_good:
-      time.sleep(30.0)
-      dynamic_good, _ = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir, verbose)
+      dynamic_good, _ = checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, checkorderparams, homedir, verbose, skipcheck)
+      if not dynamic_good:
+        time.sleep(30.0)
 
     actions['bar']()
     # check if bar is complete
     bar_good = False
     while not bar_good:
-      time.sleep(30.0)
-      bar_good, *_ = checkbar(phases, orderparams, homedir, ignoregas, verbose, liquidtotalsnapshot, gastotalsnapshot)
+      bar_good, *_ = checkbar(phases, orderparams, homedir, ignoregas, verbose, liquidtotalsnapshot, gastotalsnapshot, skipcheck)
+      if not bar_good:
+        time.sleep(30.0)
 
     actions['result']()

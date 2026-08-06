@@ -87,9 +87,15 @@ def count_arc_snapshots(file_path):
 
     return total_lines // stride
 
-def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, homedir, verbose):
+def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, homedir, verbose, skipcheck=False):
   statuslist = []
   phase_simsnapshot = {'liquid': liquidtotalsnapshot, 'gas': gastotalsnapshot}
+  # The user asserted the trajectories are present and complete; counting the
+  # snapshots of every ".arc" is the expensive part of this check, so skip it.
+  if skipcheck:
+    if verbose > 0:
+      print(YELLOW + " [Skip] Assuming all '.arc' trajectories exist and are complete" + ENDC)
+    return True, phase_simsnapshot
   for phase in phases:
     for elb, vlb in orderparams:
       fname = format_lambda_name(phase, elb, vlb)
@@ -119,7 +125,7 @@ def checkdynamic(liquidtotalsnapshot, gastotalsnapshot, phases, orderparams, hom
   completed = all(statuslist)
   return completed, phase_simsnapshot
 
-def checkbar(phases, orderparams, homedir, ignoregas, verbose, liquidtotalsnapshot=0, gastotalsnapshot=0):
+def checkbar(phases, orderparams, homedir, ignoregas, verbose, liquidtotalsnapshot=0, gastotalsnapshot=0, skipcheck=False):
   statuslist = []
   gasenes = []
   liquidenes = []
@@ -175,6 +181,13 @@ def checkbar(phases, orderparams, homedir, ignoregas, verbose, liquidtotalsnapsh
           _append_unique_ene(enedir, enefile, fep_liquidenes, fep_liquidperturbsteps, [fname0, fname1])
         else:
           _append_unique_ene(enedir, enefile, liquidenes, liquidperturbsteps, [fname0, fname1])
+
+  # The ".ene" lists above are what result() consumes, so they are always built;
+  # only the per-file completeness verification below is skipped on request.
+  if skipcheck:
+    if verbose > 0:
+      print(YELLOW + " [Skip] Assuming all BAR free energy files ('.ene') exist and are complete" + ENDC)
+    return True, gasperturbsteps, gasenes, liquidperturbsteps, liquidenes, fep_gasperturbsteps, fep_gasenes, fep_liquidperturbsteps, fep_liquidenes
 
   for enefile in gasenes + liquidenes + fep_gasenes + fep_liquidenes:
     if not os.path.isfile(enefile):

@@ -136,6 +136,34 @@ python autoBAR.py bar
 python autoBAR.py result
 ```
 
+### Skipping the Completeness Check
+
+Before running BAR, autoBAR counts the snapshots in every `.arc` trajectory; before
+collecting results, it verifies that every `.ene` file contains the BAR convergence
+line. On large trajectories the `.arc` scan dominates the runtime of `bar`.
+
+If you already know these files are present and complete, skip the verification with
+`--skip-check` (short form `-s`):
+
+```bash
+python autoBAR.py bar --skip-check
+python autoBAR.py result --skip-check
+```
+
+The same behavior can be made persistent in `settings.yaml`:
+
+```yaml
+skip_completeness_check: True
+```
+
+The command line flag takes precedence, so a run started with `--skip-check` skips the
+check even when the setting is absent or `False`.
+
+With the check disabled autoBAR also stops deleting `.bar`/`.ene` files that its
+staleness heuristics would otherwise flag for regeneration, and `auto` mode no longer
+waits for the MD and BAR jobs to finish — it assumes they already have. Use the flag
+only when that is true; incomplete files will silently produce wrong free energies.
+
 ### Automated Mode
 
 Run the entire workflow end-to-end:

@@ -10,6 +10,7 @@ lambda_window: courser        # A series of lambdas to scale ele/vdw interaction
 checking_time: 120.0          # Time interval (in second) used by autoBAR.py to check the dynamic and bar process
 copy_arc_for_perturb: YES     # Only used if a "xxx.prm_" file exists. YES/True: copy the existing ".arc" file; No/False: re-run dynamic to generate ".arc" file
 verbose: 1                    # set to 0 to see less printing info.
+skip_completeness_check: False # Skip verifying that the ".arc"/".ene" files exist and are complete. Only set to True if you are certain they are; same as the "--skip-check" flag
 
 # Input files
 ## Files MUST be provided
