@@ -21,6 +21,7 @@ Chengwen Liu — Feb 2022 (refactored Mar 2026)
 import os
 import sys
 import time
+import shlex
 import logging
 import argparse
 import subprocess
@@ -45,6 +46,7 @@ GPU_OCCUPANT_KEYWORDS = (
     "gmx",                                      # GROMACS
     "terachem",                                  # TeraChem
     "python",                                    # OpenMM / PySCF / etc.
+    "cp2k",                                    # CP2K 
 )
 
 # ---------------------------------------------------------------------------
@@ -86,10 +88,10 @@ def ssh_output(node, remote_cmd, timeout=SSH_TIMEOUT):
     Returns an empty list (never raises) so callers can treat a
     failed / unreachable node the same as an idle one.
     """
+    cmd = f'ssh -o StrictHostKeyChecking=no {node} "{remote_cmd}"'
     try:
         result = subprocess.run(
-            ['ssh', '-o', 'StrictHostKeyChecking=no', node, remote_cmd],
-            capture_output=True, text=True, timeout=timeout,
+            cmd, shell=True, capture_output=True, text=True, timeout=timeout,
         )
         if result.returncode != 0:
             log.debug("SSH to %s returned code %d: %s", node, result.returncode, result.stderr.strip())
@@ -157,15 +159,12 @@ def get_available_gpus(node):
 
     all_cards = [str(i) for i in range(num_gpus)]
 
-    # Find occupied cards by scanning for known GPU-using processes.
-    # nvidia-smi's per-process table puts the GPU index at parts[1]; newer
-    # driver versions occasionally emit "N/A" / "MiB" there instead, so
-    # require the token to be a plain integer before trusting it.
+    # Find occupied cards by scanning for known GPU-using processes
     occupied = []
     for line in summary_lines:
         if any(kw in line for kw in GPU_OCCUPANT_KEYWORDS):
             parts = line.split()
-            if len(parts) >= 2 and parts[1].isdigit():
+            if len(parts) >= 2:
                 occupied.append(parts[1])
 
     # Remove one slot per occupant (handles multi-GPU nodes correctly)
@@ -228,13 +227,31 @@ def read_node_list(is_pyscf_job=False):
 # ---------------------------------------------------------------------------
 
 def _ssh_submit(node, remote_cmd):
-    """Fire-and-forget a command on *node* via SSH."""
+    """Fire-and-forget a command on *node* via SSH. Returns True if it started.
+
+    The remote command is detached with ``nohup setsid`` and has its stdio
+    redirected, so it survives teardown of the SSH channel. Without this the
+    job is a child of sshd and takes SIGHUP the moment this process -- or the
+    login session that started it -- goes away, dying mid-run and leaving no
+    .bar/.ene behind. ssh is exec'd directly rather than through a local
+    shell so nothing is left orphaned holding our stdout.
+    """
+    detached = f"nohup setsid sh -c {shlex.quote(remote_cmd)} > /dev/null 2>&1 &"
     log.info("  --> %s : %s", node, remote_cmd)
-    subprocess.Popen(
-        ['ssh', '-o', 'StrictHostKeyChecking=no', node, remote_cmd],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    try:
+        rc = subprocess.run(
+            ['ssh', '-o', 'StrictHostKeyChecking=no',
+             '-o', f'ConnectTimeout={int(SSH_TIMEOUT)}', '-n', node, detached],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            timeout=SSH_TIMEOUT * 3,
+        ).returncode
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        log.warning("Submit to %s failed (%s); job stays queued", node, exc)
+        return False
+    if rc != 0:
+        log.warning("Submit to %s returned code %d; job stays queued", node, rc)
+        return False
+    return True
 
 
 def submit_round(pending_cmds, job_type, gpu_nodes, cpu_nodes, nproc_required):
@@ -249,7 +266,8 @@ def submit_round(pending_cmds, job_type, gpu_nodes, cpu_nodes, nproc_required):
             if not remaining:
                 break
             if check_cpu_avail(node, nproc_required):
-                _ssh_submit(node, remaining.pop(0))
+                if _ssh_submit(node, remaining[0]):
+                    remaining.pop(0)
         if len(remaining) < len(pending_cmds):
             time.sleep(CPU_SETTLE_TIME)
 
@@ -261,11 +279,8 @@ def submit_round(pending_cmds, job_type, gpu_nodes, cpu_nodes, nproc_required):
                 if not remaining:
                     break
                 cmd = remaining[0]
-                # PySCF / Python jobs manage CUDA internally. Check any
-                # whitespace-separated token for a .py suffix so a working
-                # directory containing ".py" cannot trigger a false match.
-                is_py_job = any(tok.endswith(".py") for tok in cmd.split())
-                if is_py_job:
+                # PySCF / Python jobs manage CUDA internally
+                if ".py" in cmd:
                     remote_cmd = cmd
                 else:
                     remote_cmd = (
@@ -273,7 +288,8 @@ def submit_round(pending_cmds, job_type, gpu_nodes, cpu_nodes, nproc_required):
                         f'export CUDA_VISIBLE_DEVICES="{card_id}"; '
                         f"{cmd}"
                     )
-                _ssh_submit(node, remote_cmd)
+                if not _ssh_submit(node, remote_cmd):
+                    break   # node is unhealthy; try the next one
                 remaining.pop(0)
         if len(remaining) < len(pending_cmds):
             time.sleep(GPU_SETTLE_TIME)
@@ -317,7 +333,7 @@ def build_commands(jobshs, jobcmds, paths):
                 f"python {script} > {stem}.log 2>err"
             )
         elif script.endswith(".sh"):
-            commands.append(f"cd {workdir}; bash {script}")
+            commands.append(f"cd {workdir}; sh {script}")
         else:
             sys.exit(f"Error: unsupported script type '{script}' (must be .sh or .py)")
 
