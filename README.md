@@ -38,11 +38,12 @@ autoBAR/
 ├── utils/                  # Utility modules
 │   ├── checkautobar.py     # Progress monitoring for MD and BAR jobs
 │   ├── elescale.py         # Electrostatic parameter scaling
-│   ├── parmOPT.py          # Parameter optimization targeting experimental HFE and liquid density
+│   ├── parmOPT.py          # Parameter optimization against HFE, density and dimer targets
 │   └── submitTinker.py     # Cluster job submission helper
 └── examples/               # Ready-to-use example systems
     ├── Ion-HFE/            # Na⁺ hydration free energy
-    └── Phenol-HFE/         # Phenol hydration free energy
+    ├── Phenol-HFE/         # Phenol hydration free energy
+    └── Phenol-HFE-Dimer/   # Phenol HFE + dimer interaction energy (parmOPT)
 ```
 
 ## Setup
