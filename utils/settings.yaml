@@ -4,9 +4,19 @@
 # Copy this file to your working directory and rename it settings.yaml.
 # Lines beginning with "#" are comments and are ignored.
 
-# --- Required: force field and target ---
+# --- Required: force field ---
 parameters:   AMOEBAplus_Org.prm          # Tinker parameter file (.prm)
-expt_hfe:     -6.0                        # Experimental HFE (kcal/mol)
+
+# --- Targets (all optional; enable ANY combination — at least one required) ---
+# Each target turns on automatically when its defining key is present:
+#   HFE                      -> expt_hfe
+#   neat-liquid density      -> expt_density / expt_densities
+#   dimer interaction energy -> dimer_data
+#   dimer binding (relaxed)  -> dimeropt_start
+# Comment a target's defining key out to disable that target entirely.
+
+# --- Optional: HFE target ---
+expt_hfe:     -6.0                        # Experimental HFE (kcal/mol); omit to disable HFE
 
 # opt_params / params_range: one string optimizes a single parameter group;
 # a YAML list optimizes multiple groups simultaneously.
@@ -26,7 +36,10 @@ params_range: "0.3 0"                     # 0.3 range on R; epsilon fixed at 0.0
 #   - "0.30 0.02"   # optimize both R and epsilon
 #   - "0.50 0.05"   # optimize both chgpen params
 
-# --- Required: density target ---
+# --- Optional: neat-liquid density target ---
+# Enabled when expt_density (or expt_densities) is present; omit both to disable.
+# When disabled, none of the liquid MD keys below (liquid_dir, equil_time, etc.)
+# are required.
 # Single-temperature form (scalar):
 temperature:    298.15    # Simulation temperature (K)
 expt_density:   789.0     # Experimental neat-liquid density at that temperature (kg/m³)
@@ -76,3 +89,30 @@ production_time: 0.08       # Production time (ns) — frames used for density a
 liquid_md_time_step:  2.0   # Integration timestep (fs)
 liquid_md_write_freq: 0.1   # Trajectory output interval (ps)
 liquid_md_pressure:   1.0   # Pressure (atm)
+
+# --- Optional: dimer interaction-energy target ---
+# Gas-phase E_int = E_dimer - E_mon1 - E_mon2 (via Tinker `analyze E`) compared
+# per point against QM reference energies. Enabled when dimer_data is present.
+# Each entry is: "<dimer.xyz>  <QM_E_int_kcal/mol>  [weight]"  (weight defaults to 1).
+# dimer_data:
+#   - "dimers/d1.xyz  -5.32"
+#   - "dimers/d2.xyz  -4.18  2.0"
+# dimer_frag1_natoms: 2       # atoms in fragment 1; the rest form fragment 2 (default: 2)
+# dimer_weight:  1.0          # overall weight of the dimer target (default: 1.0)
+# dimer_denom:   5.0          # kcal/mol normalization (default: RMS of the QM E_int values)
+# dimer_dir:     dimer_fit    # workdir for generated monomer/dimer .xyz (default: dimer_fit)
+# dimer_analyze: /path/to/analyze   # Tinker analyze exe (default: $ANALYZE8)
+
+# --- Optional: dimer binding-energy target at the relaxed (AMOEBA) geometry ---
+# AMOEBA minimizes the dimer with the trial params, then
+# E_bind = E_dimer(opt) - E_mon1 - E_mon2 is compared to a QM binding energy.
+# Enabled when dimeropt_start is present (dimeropt_target is then required).
+# dimeropt_start:  dimers/start.xyz   # starting dimer geometry to relax
+# dimeropt_target: -5.10              # QM binding energy De (kcal/mol) — REQUIRED when enabled
+# dimeropt_frag1_natoms: 2            # atoms in fragment 1 (default: 2)
+# dimeropt_grad:   0.01               # minimize RMS-gradient convergence (default: 0.01)
+# dimeropt_weight: 1.0                # overall weight (default: 1.0)
+# dimeropt_denom:  2.26               # kcal/mol normalization (default: sqrt(|dimeropt_target|))
+# dimeropt_dir:    dimeropt_fit       # workdir (default: dimeropt_fit)
+# dimeropt_minimize: /path/to/minimize   # Tinker minimize exe (default: $MINIMIZE8)
+# dimeropt_analyze:  /path/to/analyze    # Tinker analyze exe  (default: $ANALYZE8)

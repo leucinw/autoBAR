@@ -1,0 +1,81 @@
+# =============================================================================
+# parmOPT.py example: HFE + dimer interaction-energy targets (density disabled)
+# =============================================================================
+# Run from this directory with:  python /path/to/autoBAR/utils/parmOPT.py
+#
+# This settings file is a SUPERSET: parmOPT drives autoBAR.py for the HFE
+# target, so the autoBAR HFE keys (gas_xyz, box_xyz, *_md_*, node_list, ...)
+# must be present here too. The parmOPT-specific keys are grouped at the end.
+#
+# Targets enabled here:
+#   HFE                       -> expt_hfe            (below)
+#   dimer interaction energy  -> dimer_data          (below)
+# Target left disabled:
+#   neat-liquid density       -> no expt_density / expt_densities key present
+
+# --- Force field and coordinates (shared by autoBAR HFE + parmOPT) ---
+parameters:  amoeba09.prm          # Tinker parameter file
+gas_xyz:     phenol.xyz            # Ligand/small-molecule tinker xyz (gas phase)
+box_xyz:     phenol_solv.xyz       # Solvated simulation box (with box info)
+
+# --- autoBAR HFE workflow settings ---
+lambda_window:        courser      # lambda schedule: COURSER or DEFAULT
+checking_time:        120.0        # seconds between autoBAR dynamic/bar polls
+copy_arc_for_perturb: YES          # reuse existing .arc for perturbed prm files
+
+# liquid (solution) phase MD
+liquid_md_total_time: 0.5          # ns
+liquid_md_time_step:  2.0          # fs
+liquid_md_write_freq: 1.0          # ps
+liquid_md_ensemble:   NPT
+liquid_md_temperature: 300.0       # K
+liquid_md_pressure:   1.0          # atm
+
+# gas phase MD
+gas_md_total_time: 0.5             # ns
+gas_md_time_step:  0.1             # fs
+gas_md_write_freq: 1.0             # ps
+gas_md_temperature: 300.0          # K
+
+polar_eps: 0.00001                 # AMOEBA induced-dipole convergence
+
+# Cluster nodes to spread jobs across (Ren Lab clusters). Use just `node_list:`
+# with no entries to run sequentially on the local host.
+node_list:
+  - node103
+  - node104
+  - node105
+
+# =============================================================================
+# parmOPT-specific settings
+# =============================================================================
+
+# --- Parameters to optimize ---
+# Fit the van der Waals R and epsilon of the phenol hydroxyl oxygen (class 36).
+# term_key  initial_p1  initial_p2 ...   |   params_range: 0 = fixed parameter
+opt_params:   "vdw-36 3.4050 0.1100"     # phenol OH oxygen vdw (R, epsilon)
+params_range: "0.20   0.05"              # search ±0.20 Å on R, ±0.05 on epsilon
+
+# --- Target 1: hydration free energy (HFE) ---
+expt_hfe:    -6.62                  # Experimental phenol HFE (kcal/mol)
+hfe_weight:  1.0                    # relative weight after normalization
+# hfe_denom: 2.57                   # override auto default sqrt(|expt_hfe|)
+
+# --- Target 2: dimer interaction energy ---
+# E_int = E_dimer - E_mon1 - E_mon2 (AMOEBA `analyze E`) vs a QM reference.
+# Each entry: "<dimer.xyz>  <QM_E_int_kcal/mol>  [weight]"  (weight defaults 1).
+#
+# NOTE: dimers/phenol_water.xyz is a CONSTRUCTED starting geometry (H-bond ~1.9 Å,
+# not QM-optimized) and the -6.9 value below is an ILLUSTRATIVE placeholder.
+# Replace both with your own QM-optimized dimer geometry and reference energy.
+dimer_data:
+  - "dimers/phenol_water.xyz  -6.9  1.0"
+dimer_frag1_natoms: 13             # first 13 atoms = phenol; the rest = water
+dimer_weight:  1.0                 # overall weight of the dimer target
+# dimer_denom: 6.9                 # override auto default (RMS of QM E_int values)
+# dimer_dir:   dimer_fit           # workdir for generated monomer/dimer xyz
+# dimer_analyze: /path/to/analyze  # Tinker analyze exe (default: $ANALYZE8)
+
+# --- Density target intentionally omitted ---
+# To also fit neat-liquid density, add expt_density (+ temperature) and the
+# liquid_dir / production_time keys; see utils/settings.yaml for the full list.

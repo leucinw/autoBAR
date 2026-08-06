@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
 """
-Used to do parameter optimization targeting expt. HFE and neat liquid density
-at one or more temperatures. Necessary settings are in the main settings.yaml file
+Used to do parameter optimization targeting any combination of expt. HFE,
+neat liquid density (at one or more temperatures), and dimer interaction
+energies. Each target is optional and enabled by its settings.yaml keys:
+  - HFE                     : expt_hfe
+  - neat liquid density     : expt_density / expt_densities
+  - dimer interaction energy: dimer_data
+  - dimer binding (relaxed) : dimeropt_start
+At least one target must be enabled. Necessary settings are in the main
+settings.yaml file.
 
 Example usage: python parmOPT.py
 
@@ -32,16 +39,11 @@ _config = {}
 log = logging.getLogger(__name__)
 
 
-def _log_step_table(step, params, hfe, densities, dimer_eints=None, dimeropt_bind=None):
-    """Log a per-step summary table comparing current vs. target properties."""
-    expt_hfe = _config["expt_hfe"]
-    expt_densities = _config["expt_densities"]
-    temperatures = _config["temperatures"]
-    hfe_weight = _config["hfe_weight"]
-    density_weights = _config["density_weights"]
-    hfe_denom = _config["hfe_denom"]
-    density_denom = _config["density_denom"]
+def _log_step_table(step, params, hfe=None, densities=None, dimer_eints=None, dimeropt_bind=None):
+    """Log a per-step summary table comparing current vs. target properties.
 
+    Disabled targets are passed as None and skipped.
+    """
     col = (24, 12, 12, 12, 16)   # property, target, current, diff, wt_norm_residual
     hdr = (f"{'Property':<{col[0]}}"
            f"{'Target':>{col[1]}}"
@@ -51,28 +53,35 @@ def _log_step_table(step, params, hfe, densities, dimer_eints=None, dimeropt_bin
     sep = "-" * sum(col)
 
     rows = []
-    hfe_diff = hfe - expt_hfe
-    hfe_wt_res = hfe_weight * hfe_diff / hfe_denom
-    rows.append(
-        f"{'HFE (kcal/mol)':<{col[0]}}"
-        f"{expt_hfe:>{col[1]}.4f}"
-        f"{hfe:>{col[2]}.4f}"
-        f"{hfe_diff:>{col[3]+1}.4f}"
-        f"{hfe_wt_res:>{col[4]}.4f}"
-    )
-    wt_res_list = [hfe_wt_res]
-    for T, rho, rho_tgt, d_weight in zip(temperatures, densities, expt_densities, density_weights):
-        label = f"Density@{T:.1f}K (kg/m³)"
-        diff = rho - rho_tgt
-        wt_res = d_weight * diff / density_denom
-        wt_res_list.append(wt_res)
+    wt_res_list = []
+    if hfe is not None:
+        expt_hfe = _config["expt_hfe"]
+        hfe_diff = hfe - expt_hfe
+        hfe_wt_res = _config["hfe_weight"] * hfe_diff / _config["hfe_denom"]
+        wt_res_list.append(hfe_wt_res)
         rows.append(
-            f"{label:<{col[0]}}"
-            f"{rho_tgt:>{col[1]}.3f}"
-            f"{rho:>{col[2]}.3f}"
-            f"{diff:>{col[3]+1}.3f}"
-            f"{wt_res:>{col[4]}.4f}"
+            f"{'HFE (kcal/mol)':<{col[0]}}"
+            f"{expt_hfe:>{col[1]}.4f}"
+            f"{hfe:>{col[2]}.4f}"
+            f"{hfe_diff:>{col[3]+1}.4f}"
+            f"{hfe_wt_res:>{col[4]}.4f}"
         )
+    if densities is not None:
+        density_denom = _config["density_denom"]
+        for T, rho, rho_tgt, d_weight in zip(_config["temperatures"], densities,
+                                             _config["expt_densities"],
+                                             _config["density_weights"]):
+            label = f"Density@{T:.1f}K (kg/m³)"
+            diff = rho - rho_tgt
+            wt_res = d_weight * diff / density_denom
+            wt_res_list.append(wt_res)
+            rows.append(
+                f"{label:<{col[0]}}"
+                f"{rho_tgt:>{col[1]}.3f}"
+                f"{rho:>{col[2]}.3f}"
+                f"{diff:>{col[3]+1}.3f}"
+                f"{wt_res:>{col[4]}.4f}"
+            )
     if dimer_eints is not None and _config.get("dimer_enabled"):
         dw = _config["dimer_weight"]
         dd = _config["dimer_denom"]
@@ -1039,22 +1048,18 @@ def _dimeropt_setup(settings):
 # ---------------------------------------------------------------------------
 
 def model_func(params):
-    """Compute residuals for HFE and neat liquid density at each temperature.
+    """Compute residuals for every enabled target at the current params.
 
-    Residual vector layout: [hfe_residual, density_residual_T0, density_residual_T1, ...]
+    Residual vector layout (disabled targets contribute no entries):
+    [hfe, density_T0, density_T1, ..., dimer_points..., dimeropt]
     """
     param_file = _config["param_file"]
     initial_params = _config["initial_params"]
-    expt_hfe = _config["expt_hfe"]
-    expt_densities = _config["expt_densities"]
-    hfe_weight = _config["hfe_weight"]
-    density_weights = _config["density_weights"]
-    temperatures = _config["temperatures"]
-    n_equil = _config["n_equil"]
-    liquid_dir = _config["liquid_dir"]
-    liquid_base = _config["liquid_base"]
+    hfe_enabled = _config["hfe_enabled"]
+    density_enabled = _config["density_enabled"]
 
-    Path('result.txt').unlink(missing_ok=True)
+    if hfe_enabled:
+        Path('result.txt').unlink(missing_ok=True)
 
     _config["step"] = _config.get("step", 0) + 1
     is_initial = np.array_equal(params, initial_params)
@@ -1075,48 +1080,56 @@ def model_func(params):
     # Update the shared key file with the current parameter file, then
     # launch autoBAR 'auto' in the background so we can immediately submit
     # the neat-liquid MD jobs to the GPU cluster without waiting for HFE.
-    _update_shared_key(current_prm)
-    autobar_proc = _run_autobar(background=True)
-    _submit_neat_liquid_to_cluster(is_initial=is_initial)
+    if density_enabled:
+        _update_shared_key(current_prm)
+    autobar_proc = _run_autobar(background=True) if hfe_enabled else None
+    if density_enabled:
+        _submit_neat_liquid_to_cluster(is_initial=is_initial)
 
-    # --- Wait for HFE ---
-    rc = autobar_proc.wait()
-    if rc != 0:
-        raise RuntimeError(f"autoBAR.py exited with code {rc}; aborting optimization")
-    if not os.path.isfile('result.txt'):
-        raise RuntimeError("autoBAR.py returned 0 but result.txt was not produced")
+    # --- Wait for HFE and parse result ---
+    hfe = None
+    if hfe_enabled:
+        rc = autobar_proc.wait()
+        if rc != 0:
+            raise RuntimeError(f"autoBAR.py exited with code {rc}; aborting optimization")
+        if not os.path.isfile('result.txt'):
+            raise RuntimeError("autoBAR.py returned 0 but result.txt was not produced")
 
-    # --- Parse HFE result ---
-    with open('result.txt') as f:
-        lines = f.readlines()
+        with open('result.txt') as f:
+            lines = f.readlines()
 
-    fe0 = fe1 = None
-    for line in lines:
-        if 'SUM OF ' in line:
-            fe0 = float(line.split()[-2])
-        if 'FEP_001' in line:
-            fe1 = float(line.split()[-1])
+        fe0 = fe1 = None
+        for line in lines:
+            if 'SUM OF ' in line:
+                fe0 = float(line.split()[-2])
+            if 'FEP_001' in line:
+                fe1 = float(line.split()[-1])
 
-    if is_initial:
-        if fe0 is None:
-            raise RuntimeError("result.txt missing 'SUM OF ' line for reference point")
-        hfe = fe0
-    else:
-        if fe1 is None:
-            raise RuntimeError("result.txt missing 'FEP_001' line for trial point")
-        hfe = fe1
+        if is_initial:
+            if fe0 is None:
+                raise RuntimeError("result.txt missing 'SUM OF ' line for reference point")
+            hfe = fe0
+        else:
+            if fe1 is None:
+                raise RuntimeError("result.txt missing 'FEP_001' line for trial point")
+            hfe = fe1
 
     # --- Wait for neat liquid MD and parse density ---
-    _wait_for_neat_liquid_mds()
-    rho_frames_list = []
-    densities = []
-    for T in temperatures:
-        log_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.0f}K.log")
-        rho_frames = _parse_liquid_trajectory(log_path, n_equil)
-        rho_frames_list.append(rho_frames)
-        densities.append(rho_frames.mean())
+    densities = None
+    if density_enabled:
+        _wait_for_neat_liquid_mds()
+        liquid_dir = _config["liquid_dir"]
+        liquid_base = _config["liquid_base"]
+        n_equil = _config["n_equil"]
+        rho_frames_list = []
+        densities = []
+        for T in _config["temperatures"]:
+            log_path = os.path.join(liquid_dir, f"{liquid_base}_{T:.0f}K.log")
+            rho_frames = _parse_liquid_trajectory(log_path, n_equil)
+            rho_frames_list.append(rho_frames)
+            densities.append(rho_frames.mean())
 
-    _config["rho_frames_list"] = rho_frames_list
+        _config["rho_frames_list"] = rho_frames_list
 
     # --- Dimer interaction energies at the current params (cheap, gas-phase) ---
     dimer_eints = _dimer_eval(current_prm) if _config.get("dimer_enabled") else None
@@ -1125,11 +1138,16 @@ def model_func(params):
 
     _log_step_table(_config["step"], params, hfe, densities, dimer_eints, dimeropt_bind)
 
-    hfe_denom = _config["hfe_denom"]
-    density_denom = _config["density_denom"]
-    residuals = [hfe_weight * (hfe - expt_hfe) / hfe_denom]
-    for rho, rho_tgt, d_weight in zip(densities, expt_densities, density_weights):
-        residuals.append(d_weight * (rho - rho_tgt) / density_denom)
+    residuals = []
+    if hfe is not None:
+        residuals.append(
+            _config["hfe_weight"] * (hfe - _config["expt_hfe"]) / _config["hfe_denom"]
+        )
+    if densities is not None:
+        density_denom = _config["density_denom"]
+        for rho, rho_tgt, d_weight in zip(densities, _config["expt_densities"],
+                                          _config["density_weights"]):
+            residuals.append(d_weight * (rho - rho_tgt) / density_denom)
     if dimer_eints is not None:
         residuals.extend(_dimer_residuals(dimer_eints).tolist())
     if dimeropt_bind is not None:
@@ -1183,11 +1201,12 @@ def write_final_prm(params):
 
 
 def jacobian_fd(params):
-    """Compute Jacobian of shape (1 + n_temps, n_params).
+    """Compute the Jacobian, one row per enabled residual (same order as model_func).
 
-    Row 0         = HFE sensitivity (FD via autoBAR FEP).
-    Rows 1..n_temps = density sensitivity at each temperature (Eq. 4 of
-                      Wang et al. 2013, applied to per-temperature trajectories).
+    HFE row       = HFE sensitivity (FD via autoBAR FEP).
+    Density rows  = density sensitivity at each temperature (Eq. 4 of
+                    Wang et al. 2013, applied to per-temperature trajectories).
+    Dimer rows    = central FD on the cheap gas-phase analyze calls.
 
     All $ANALYZE calls for the density rows are spawned in parallel across
     every (param perturbation, temperature) pair and run concurrently with
@@ -1196,23 +1215,21 @@ def jacobian_fd(params):
     param_file = _config["param_file"]
     initial_params = _config["initial_params"]
     diff_step = _config["diff_step"]
-    hfe_weight = _config["hfe_weight"]
-    density_weights = _config["density_weights"]
-    hfe_denom = _config["hfe_denom"]
-    density_denom = _config["density_denom"]
-    beta_list = _config["beta_list"]
-    rho_frames_list = _config["rho_frames_list"]
+    hfe_enabled = _config["hfe_enabled"]
+    density_enabled = _config["density_enabled"]
     temperatures = _config["temperatures"]
     liquid_dir = _config["liquid_dir"]
 
-    n_temps = len(temperatures)
+    n_temps = len(temperatures) if density_enabled else 0
+    n_hfe = 1 if hfe_enabled else 0
     n_params = len(params)
     params = np.atleast_1d(params)
 
-    J = np.zeros((1 + n_temps, n_params))
+    J = np.zeros((n_hfe + n_temps, n_params))
     step = diff_step * np.ones(n_params)
 
-    Path('result.txt').unlink(missing_ok=True)
+    if hfe_enabled:
+        Path('result.txt').unlink(missing_ok=True)
 
     is_initial = np.array_equal(params, initial_params)
     perturb_idx = 1 if is_initial else 2
@@ -1220,113 +1237,125 @@ def jacobian_fd(params):
     created_indices = []
     param_perturb_map = {}   # j → (plus_idx, minus_idx)
 
-    for j in range(n_params):
-        params_plus = params.copy()
-        params_minus = params.copy()
-        dp = np.zeros_like(params)
-        dp[j] = step[j]
+    # Perturbed prm sidecars are consumed by autoBAR (HFE row) and by the
+    # analyze jobs (density rows); neither is needed for dimer-only fits.
+    if hfe_enabled or density_enabled:
+        for j in range(n_params):
+            params_plus = params.copy()
+            params_minus = params.copy()
+            dp = np.zeros_like(params)
+            dp[j] = step[j]
 
-        # plus finite difference
-        lambda_str = f"{100 + perturb_idx * 10}"
-        param_file_p = param_file + f'_{perturb_idx:02d}'
-        _remove_matching(f'*/{param_file_p}')
-        Path(param_file_p).unlink(missing_ok=True)
-        _remove_matching(f'*/FEP_{perturb_idx:02d}')
-        _remove_matching(f'*/*e{lambda_str}*')
-        params_plus += dp
-        write_prm(params_plus, param_file_p)
-        created_indices.append(perturb_idx)
-        plus_idx = perturb_idx
-        perturb_idx += 1
+            # plus finite difference
+            lambda_str = f"{100 + perturb_idx * 10}"
+            param_file_p = param_file + f'_{perturb_idx:02d}'
+            _remove_matching(f'*/{param_file_p}')
+            Path(param_file_p).unlink(missing_ok=True)
+            _remove_matching(f'*/FEP_{perturb_idx:02d}')
+            _remove_matching(f'*/*e{lambda_str}*')
+            params_plus += dp
+            write_prm(params_plus, param_file_p)
+            created_indices.append(perturb_idx)
+            plus_idx = perturb_idx
+            perturb_idx += 1
 
-        # minus finite difference
-        lambda_str = f"{100 + perturb_idx * 10}"
-        param_file_p = param_file + f'_{perturb_idx:02d}'
-        _remove_matching(f'*/{param_file_p}')
-        Path(param_file_p).unlink(missing_ok=True)
-        _remove_matching(f'*/FEP_{perturb_idx:02d}')
-        _remove_matching(f'*/*e{lambda_str}*')
-        params_minus -= dp
-        write_prm(params_minus, param_file_p)
-        created_indices.append(perturb_idx)
-        minus_idx = perturb_idx
-        perturb_idx += 1
+            # minus finite difference
+            lambda_str = f"{100 + perturb_idx * 10}"
+            param_file_p = param_file + f'_{perturb_idx:02d}'
+            _remove_matching(f'*/{param_file_p}')
+            Path(param_file_p).unlink(missing_ok=True)
+            _remove_matching(f'*/FEP_{perturb_idx:02d}')
+            _remove_matching(f'*/*e{lambda_str}*')
+            params_minus -= dp
+            write_prm(params_minus, param_file_p)
+            created_indices.append(perturb_idx)
+            minus_idx = perturb_idx
+            perturb_idx += 1
 
-        param_perturb_map[j] = (plus_idx, minus_idx)
+            param_perturb_map[j] = (plus_idx, minus_idx)
 
-    # --- Build production arcs (one per temperature, shared by all perturbations) ---
-    liquid_base = _config["liquid_base"]
-    n_equil     = _config["n_equil"]
-    for T in temperatures:
-        tag      = f"_{T:.0f}K"
-        full_arc = os.path.join(liquid_dir, f"{liquid_base}{tag}.arc")
-        prod_arc = os.path.join(liquid_dir, f"{liquid_base}{tag}-prod.arc")
-        log.info("Trimming production arc for T=%.1fK (%d equil frames dropped)", T, n_equil)
-        _trim_arc_to_production(full_arc, prod_arc, n_equil)
-        Path(full_arc).unlink(missing_ok=True)
+    # --- Build production arcs, write analyze .sh files, submit to cluster ---
+    analyze_log_map = {}   # (pidx, temp_i) → log_path
+    if density_enabled:
+        liquid_base = _config["liquid_base"]
+        n_equil     = _config["n_equil"]
+        for T in temperatures:
+            tag      = f"_{T:.0f}K"
+            full_arc = os.path.join(liquid_dir, f"{liquid_base}{tag}.arc")
+            prod_arc = os.path.join(liquid_dir, f"{liquid_base}{tag}-prod.arc")
+            log.info("Trimming production arc for T=%.1fK (%d equil frames dropped)", T, n_equil)
+            _trim_arc_to_production(full_arc, prod_arc, n_equil)
+            Path(full_arc).unlink(missing_ok=True)
 
-    # --- Write analyze .sh files and submit to cluster, then run autoBAR ---
-    # Key: (pidx, temp_i) → log_path
-    analyze_log_map = {}
-    sh_names = []
-    for j in range(n_params):
-        for pidx in param_perturb_map[j]:
-            prm_k = param_file + f'_{pidx:02d}'
-            for temp_i, T in enumerate(temperatures):
-                if (pidx, temp_i) not in analyze_log_map:
-                    sh_name, log_path = _write_analyze_sh(prm_k, pidx, T)
-                    analyze_log_map[(pidx, temp_i)] = log_path
-                    sh_names.append(sh_name)
+        sh_names = []
+        for j in range(n_params):
+            for pidx in param_perturb_map[j]:
+                prm_k = param_file + f'_{pidx:02d}'
+                for temp_i, T in enumerate(temperatures):
+                    if (pidx, temp_i) not in analyze_log_map:
+                        sh_name, log_path = _write_analyze_sh(prm_k, pidx, T)
+                        analyze_log_map[(pidx, temp_i)] = log_path
+                        sh_names.append(sh_name)
+        _submit_analyze_to_cluster(sh_names)
 
-    _submit_analyze_to_cluster(sh_names)
-    _run_autobar()
-    _wait_for_analyze_logs(list(analyze_log_map.values()))
+    if hfe_enabled:
+        _run_autobar()
 
-    E_by_pidx_temp = {
-        key: _parse_analyze_log(log_path)
-        for key, log_path in analyze_log_map.items()
-    }
+    if density_enabled:
+        _wait_for_analyze_logs(list(analyze_log_map.values()))
+        E_by_pidx_temp = {
+            key: _parse_analyze_log(log_path)
+            for key, log_path in analyze_log_map.items()
+        }
 
     # --- HFE Jacobian (row 0) from result.txt ---
-    with open('result.txt') as f:
-        lines = f.readlines()
+    if hfe_enabled:
+        with open('result.txt') as f:
+            lines = f.readlines()
 
-    feps = []
-    for line in lines:
-        if 'FEP_' in line:
-            feps.append(float(line.split()[-1]))
+        feps = []
+        for line in lines:
+            if 'FEP_' in line:
+                feps.append(float(line.split()[-1]))
 
-    # Non-initial calls reuse the trial point (prm_01 → FEP_01) produced by
-    # the preceding model_func call, so result.txt has one extra FEP row.
-    expected = 2 * n_params if is_initial else 2 * n_params + 1
-    if len(feps) != expected:
-        raise RuntimeError(
-            f"result.txt has {len(feps)} FEP rows, expected {expected} "
-            f"(is_initial={is_initial}, created perturb_idx={created_indices})"
-        )
+        # Non-initial calls reuse the trial point (prm_01 → FEP_01) produced by
+        # the preceding model_func call, so result.txt has one extra FEP row.
+        expected = 2 * n_params if is_initial else 2 * n_params + 1
+        if len(feps) != expected:
+            raise RuntimeError(
+                f"result.txt has {len(feps)} FEP rows, expected {expected} "
+                f"(is_initial={is_initial}, created perturb_idx={created_indices})"
+            )
 
-    for j in range(n_params):
-        if is_initial:
-            r_plus = feps[j * 2]
-            r_minus = feps[j * 2 + 1]
-        else:
-            r_plus = feps[j * 2 + 1]
-            r_minus = feps[j * 2 + 2]
-        J[0, j] = hfe_weight * (r_plus - r_minus) / (2 * diff_step) / hfe_denom
-
-    # --- Density Jacobian (rows 1..n_temps) via Eq. 4 ---
-    for temp_i, (d_weight, beta, rho_frames) in enumerate(
-        zip(density_weights, beta_list, rho_frames_list)
-    ):
+        hfe_weight = _config["hfe_weight"]
+        hfe_denom = _config["hfe_denom"]
         for j in range(n_params):
-            plus_idx, minus_idx = param_perturb_map[j]
-            J[1 + temp_i, j] = d_weight * _density_jacobian_col(
-                rho_frames,
-                E_by_pidx_temp[(plus_idx, temp_i)],
-                E_by_pidx_temp[(minus_idx, temp_i)],
-                beta,
-                diff_step,
-            ) / density_denom
+            if is_initial:
+                r_plus = feps[j * 2]
+                r_minus = feps[j * 2 + 1]
+            else:
+                r_plus = feps[j * 2 + 1]
+                r_minus = feps[j * 2 + 2]
+            J[0, j] = hfe_weight * (r_plus - r_minus) / (2 * diff_step) / hfe_denom
+
+    # --- Density Jacobian rows via Eq. 4 ---
+    if density_enabled:
+        density_weights = _config["density_weights"]
+        density_denom = _config["density_denom"]
+        beta_list = _config["beta_list"]
+        rho_frames_list = _config["rho_frames_list"]
+        for temp_i, (d_weight, beta, rho_frames) in enumerate(
+            zip(density_weights, beta_list, rho_frames_list)
+        ):
+            for j in range(n_params):
+                plus_idx, minus_idx = param_perturb_map[j]
+                J[n_hfe + temp_i, j] = d_weight * _density_jacobian_col(
+                    rho_frames,
+                    E_by_pidx_temp[(plus_idx, temp_i)],
+                    E_by_pidx_temp[(minus_idx, temp_i)],
+                    beta,
+                    diff_step,
+                ) / density_denom
 
     # --- Dimer Jacobian rows (central FD on the cheap analyze calls) ---
     if _config.get("dimer_enabled"):
@@ -1393,13 +1422,13 @@ def main():
         settings = yaml_parser.load(f)
 
     param_file = settings["parameters"]
-    expt_hfe = float(settings["expt_hfe"])
+
+    # --- HFE target (optional): enabled when expt_hfe is given ---
+    raw_expt_hfe = settings.get("expt_hfe", None)
+    hfe_enabled = raw_expt_hfe is not None
+    expt_hfe = float(raw_expt_hfe) if hfe_enabled else None
     hfe_weight = float(settings.get("hfe_weight", 1.0))
-    liquid_dir = str(Path(settings["liquid_dir"]).resolve())
-    # liquid_base: coordinate/trajectory base name inside liquid_dir.
-    # Default "neat_liq" avoids collision with autoBAR's ./liquid/ directory.
-    liquid_base = settings.get("liquid_base", "neat_liq")
-    liquid_key = settings.get("liquid_key", liquid_base)
+
     raw_opt_params = settings["opt_params"]
     if isinstance(raw_opt_params, str):
         raw_opt_params = [raw_opt_params]
@@ -1414,63 +1443,77 @@ def main():
             f"params_range has {len(raw_params_range)}; they must match."
         )
 
-    # Multi-temperature support: "temperatures" (list) takes priority over
-    # the single-value "temperature" key for backward compatibility.
-    raw_temps = settings.get("temperatures", None)
-    if raw_temps is not None:
-        temperatures = [float(t) for t in raw_temps]
-    else:
-        temperatures = [float(settings["temperature"])]
-
-    # Experimental densities: "expt_densities" (list) or "expt_density" (scalar).
+    # --- Neat-liquid density target (optional): enabled when expt_density /
+    # expt_densities is given ---
     raw_densities = settings.get("expt_densities", None)
     if raw_densities is not None:
         expt_densities = [float(d) for d in raw_densities]
-    else:
+    elif settings.get("expt_density", None) is not None:
         expt_densities = [float(settings["expt_density"])]
-
-    if len(temperatures) != len(expt_densities):
-        sys.exit(
-            f"[Error] temperatures has {len(temperatures)} value(s) but "
-            f"expt_densities has {len(expt_densities)}; they must match."
-        )
-
-    # Density weights: "density_weights" (list) or uniform "density_weight" (scalar).
-    # Weights are normalized by the number of temperatures so that adding more
-    # temperatures does not inflate the total density contribution to the cost.
-    raw_dweights = settings.get("density_weights", None)
-    if raw_dweights is not None:
-        density_weights = [float(w) for w in raw_dweights]
-        if len(density_weights) != len(temperatures):
-            sys.exit(
-                f"[Error] density_weights has {len(density_weights)} value(s) but "
-                f"temperatures has {len(temperatures)}; they must match."
-            )
     else:
-        single_weight = float(settings.get("density_weight", 1.0))
-        density_weights = [single_weight] * len(temperatures)
+        expt_densities = []
+    density_enabled = len(expt_densities) > 0
 
-    n_temps = len(temperatures)
-    density_weights = [w / n_temps for w in density_weights]
+    if density_enabled:
+        # Multi-temperature support: "temperatures" (list) takes priority over
+        # the single-value "temperature" key for backward compatibility.
+        raw_temps = settings.get("temperatures", None)
+        if raw_temps is not None:
+            temperatures = [float(t) for t in raw_temps]
+        else:
+            temperatures = [float(settings["temperature"])]
 
-    beta_list = [1.0 / (_KB * T) for T in temperatures]
+        if len(temperatures) != len(expt_densities):
+            sys.exit(
+                f"[Error] temperatures has {len(temperatures)} value(s) but "
+                f"expt_densities has {len(expt_densities)}; they must match."
+            )
+
+        # Density weights: "density_weights" (list) or uniform "density_weight" (scalar).
+        # Weights are normalized by the number of temperatures so that adding more
+        # temperatures does not inflate the total density contribution to the cost.
+        raw_dweights = settings.get("density_weights", None)
+        if raw_dweights is not None:
+            density_weights = [float(w) for w in raw_dweights]
+            if len(density_weights) != len(temperatures):
+                sys.exit(
+                    f"[Error] density_weights has {len(density_weights)} value(s) but "
+                    f"temperatures has {len(temperatures)}; they must match."
+                )
+        else:
+            single_weight = float(settings.get("density_weight", 1.0))
+            density_weights = [single_weight] * len(temperatures)
+
+        n_temps = len(temperatures)
+        density_weights = [w / n_temps for w in density_weights]
+
+        beta_list = [1.0 / (_KB * T) for T in temperatures]
+    else:
+        temperatures = []
+        density_weights = []
+        beta_list = []
+        n_temps = 0
 
     # --- Scale-normalization denominators (ForceBalance-style) ---
     # Defaults: std-dev of expt values when multiple points are available,
     # sqrt(|single value|) when only one point exists (matches FB's convention).
     # Both can be overridden in settings.yaml via hfe_denom / density_denom.
-    if len(expt_densities) > 1:
-        density_denom_default = float(np.std(expt_densities))
-    else:
-        density_denom_default = float(np.sqrt(abs(expt_densities[0])))
-    density_denom = float(settings.get("density_denom", density_denom_default))
-    if density_denom <= 0:
-        sys.exit("[Error] density_denom must be positive.")
+    density_denom = None
+    if density_enabled:
+        if len(expt_densities) > 1:
+            density_denom_default = float(np.std(expt_densities))
+        else:
+            density_denom_default = float(np.sqrt(abs(expt_densities[0])))
+        density_denom = float(settings.get("density_denom", density_denom_default))
+        if density_denom <= 0:
+            sys.exit("[Error] density_denom must be positive.")
 
-    hfe_denom_default = float(np.sqrt(abs(expt_hfe))) if expt_hfe != 0.0 else 1.0
-    hfe_denom = float(settings.get("hfe_denom", hfe_denom_default))
-    if hfe_denom <= 0:
-        sys.exit("[Error] hfe_denom must be positive.")
+    hfe_denom = None
+    if hfe_enabled:
+        hfe_denom_default = float(np.sqrt(abs(expt_hfe))) if expt_hfe != 0.0 else 1.0
+        hfe_denom = float(settings.get("hfe_denom", hfe_denom_default))
+        if hfe_denom <= 0:
+            sys.exit("[Error] hfe_denom must be positive.")
 
     # parmOPT.py lives in <repo>/utils/, so autoBAR.py is one level up.
     autobar_path = str(Path(__file__).resolve().parent.parent / 'autoBAR.py')
@@ -1566,51 +1609,70 @@ def main():
 
     diff_step = 0.0001
 
-    # Total system mass from xyz + prm (for density conversion).
-    # The xyz is the only file the user must supply in liquid_dir; the .key
-    # and .sh are auto-generated below.
-    liquid_xyz = str(Path(liquid_dir) / f"{liquid_base}.xyz")
-    if not os.path.isfile(liquid_xyz):
-        sys.exit(
-            f"[Error] Neat-liquid coordinate file not found: {liquid_xyz}\n"
-            f"  Place the Tinker .xyz file for the neat liquid in '{liquid_dir}/' "
-            f"with the base name '{liquid_base}'.\n"
-            f"  The .key and .sh files are auto-generated — only the .xyz is required."
+    # --- Neat-liquid MD setup (only when the density target is enabled) ---
+    if density_enabled:
+        liquid_dir = str(Path(settings["liquid_dir"]).resolve())
+        # liquid_base: coordinate/trajectory base name inside liquid_dir.
+        # Default "neat_liq" avoids collision with autoBAR's ./liquid/ directory.
+        liquid_base = settings.get("liquid_base", "neat_liq")
+        liquid_key = settings.get("liquid_key", liquid_base)
+
+        # Total system mass from xyz + prm (for density conversion).
+        # The xyz is the only file the user must supply in liquid_dir; the .key
+        # and .sh are auto-generated below.
+        liquid_xyz = str(Path(liquid_dir) / f"{liquid_base}.xyz")
+        if not os.path.isfile(liquid_xyz):
+            sys.exit(
+                f"[Error] Neat-liquid coordinate file not found: {liquid_xyz}\n"
+                f"  Place the Tinker .xyz file for the neat liquid in '{liquid_dir}/' "
+                f"with the base name '{liquid_base}'.\n"
+                f"  The .key and .sh files are auto-generated — only the .xyz is required."
+            )
+        total_mass = _parse_system_mass(liquid_xyz, param_file)
+
+        # Key file template for neat-liquid MD: liquid_dir/<liquid_key>.key
+        liquid_key_file = str((Path(liquid_dir) / liquid_key).with_suffix('.key'))
+        if not os.path.isfile(liquid_key_file):
+            hfe_key = _find_hfe_liquid_key(settings, autobar_path)
+            _derive_liquid_key(hfe_key, liquid_key_file)
+            log.info(
+                f"Neat-liquid key not found; auto-generated {liquid_key_file} "
+                f"from {hfe_key} (removed vdw-annihilate, vdw-lambda, ele-lambda, ligand)"
+            )
+
+        # Liquid MD parameters — shared keys with autoBAR HFE liquid settings.
+        md_dt = float(settings.get("liquid_md_time_step", 2.0))
+        md_t_out = float(settings.get("liquid_md_write_freq", 0.1))
+        md_int_type = "4"
+        md_pressure = float(settings.get("liquid_md_pressure", 1.0))
+        equil_time = float(settings.get("equil_time", 0.02))        # ns
+        production_time = float(settings["production_time"])         # ns
+        n_equil = round(equil_time * 1000.0 / md_t_out)
+        n_production = round(production_time * 1000.0 / md_t_out)
+
+        sh_names = _write_liquid_sh(
+            liquid_dir, liquid_base, liquid_key,
+            n_equil, n_production, md_dt, md_t_out,
+            md_int_type, temperatures, md_pressure, tinkerenv,
         )
-    total_mass = _parse_system_mass(liquid_xyz, param_file)
-
-    # Key file template for neat-liquid MD: liquid_dir/<liquid_key>.key
-    liquid_key_file = str((Path(liquid_dir) / liquid_key).with_suffix('.key'))
-    if not os.path.isfile(liquid_key_file):
-        hfe_key = _find_hfe_liquid_key(settings, autobar_path)
-        _derive_liquid_key(hfe_key, liquid_key_file)
-        log.info(
-            f"Neat-liquid key not found; auto-generated {liquid_key_file} "
-            f"from {hfe_key} (removed vdw-annihilate, vdw-lambda, ele-lambda, ligand)"
-        )
-
-    # Liquid MD parameters — shared keys with autoBAR HFE liquid settings.
-    md_dt = float(settings.get("liquid_md_time_step", 2.0))
-    md_t_out = float(settings.get("liquid_md_write_freq", 0.1))
-    md_int_type = "4"
-    md_pressure = float(settings.get("liquid_md_pressure", 1.0))
-    equil_time = float(settings.get("equil_time", 0.02))        # ns
-    production_time = float(settings["production_time"])         # ns
-    n_equil = round(equil_time * 1000.0 / md_t_out)
-    n_production = round(production_time * 1000.0 / md_t_out)
-
-    sh_names = _write_liquid_sh(
-        liquid_dir, liquid_base, liquid_key,
-        n_equil, n_production, md_dt, md_t_out,
-        md_int_type, temperatures, md_pressure, tinkerenv,
-    )
-    for sh_name in sh_names:
-        log.info("Wrote liquid MD script: %s", sh_name)
+        for sh_name in sh_names:
+            log.info("Wrote liquid MD script: %s", sh_name)
+    else:
+        liquid_dir = None
+        liquid_base = None
+        liquid_key_file = None
+        total_mass = None
+        md_dt = md_t_out = md_pressure = None
+        md_int_type = None
+        n_equil = n_production = 0
+        sh_names = []
 
     # Populate the module-level config dict
     _config.update({
         "param_file": param_file,
         "param_file_snapshot": snapshot,
+        "hfe_enabled": hfe_enabled,
+        "density_enabled": density_enabled,
         "expt_hfe": expt_hfe,
         "expt_densities": expt_densities,
         "hfe_weight": hfe_weight,
@@ -1648,9 +1710,15 @@ def main():
     # Optional: dimer-optimization binding energy at AMOEBA's own geometry.
     _dimeropt_setup(settings)
 
-    steps_per_frame = round(md_t_out * 1000.0 / md_dt)
-    total_md_frames = n_equil + n_production
-    total_md_steps = total_md_frames * steps_per_frame
+    if not (hfe_enabled or density_enabled
+            or _config.get("dimer_enabled") or _config.get("dimeropt_enabled")):
+        sys.exit(
+            "[Error] No optimization targets enabled. Provide at least one of "
+            "the following in settings.yaml: expt_hfe (HFE), "
+            "expt_density/expt_densities (neat liquid density), "
+            "dimer_data (dimer interaction energy), "
+            "dimeropt_start (dimer binding at relaxed geometry)."
+        )
 
     log.info("=== Optimization Settings ===")
     log.info(f'diff_step {diff_step}')
@@ -1667,16 +1735,24 @@ def main():
             else:
                 parts.append(f"{p:.6g}(fixed)")
         log.info(f'  {entry["term_idx"]}: {", ".join(parts)}')
-    log.info(f'expt_hfe: {expt_hfe} kcal/mol  hfe_weight: {hfe_weight}  hfe_denom: {hfe_denom:.4g}')
-    log.info(f'density_denom: {density_denom:.4g} kg/m³  '
-             f'(density weights normalized by n_temps={n_temps})')
-    for T, rho_tgt, d_weight in zip(temperatures, expt_densities, density_weights):
-        log.info(f'  T={T:.1f} K: expt_density={rho_tgt} kg/m³  '
-                 f'density_weight(effective)={d_weight:.6g}')
-    log.info(f'total_mass: {total_mass:.4f} g/mol  liquid_dir: {liquid_dir}')
-    log.info(f'equil: {equil_time} ns ({n_equil} frames)  '
-             f'production: {production_time} ns ({n_production} frames)  '
-             f'total MD steps per call: {total_md_steps}')
+    if hfe_enabled:
+        log.info(f'expt_hfe: {expt_hfe} kcal/mol  hfe_weight: {hfe_weight}  hfe_denom: {hfe_denom:.4g}')
+    else:
+        log.info('HFE target: disabled (no expt_hfe in settings.yaml)')
+    if density_enabled:
+        steps_per_frame = round(md_t_out * 1000.0 / md_dt)
+        total_md_steps = (n_equil + n_production) * steps_per_frame
+        log.info(f'density_denom: {density_denom:.4g} kg/m³  '
+                 f'(density weights normalized by n_temps={n_temps})')
+        for T, rho_tgt, d_weight in zip(temperatures, expt_densities, density_weights):
+            log.info(f'  T={T:.1f} K: expt_density={rho_tgt} kg/m³  '
+                     f'density_weight(effective)={d_weight:.6g}')
+        log.info(f'total_mass: {total_mass:.4f} g/mol  liquid_dir: {liquid_dir}')
+        log.info(f'equil: {equil_time} ns ({n_equil} frames)  '
+                 f'production: {production_time} ns ({n_production} frames)  '
+                 f'total MD steps per call: {total_md_steps}')
+    else:
+        log.info('density target: disabled (no expt_density/expt_densities in settings.yaml)')
     if _config.get("dimer_enabled"):
         log.info(f'dimer target: {len(_config["dimer_points"])} points  '
                  f'dimer_weight: {_config["dimer_weight"]}  '
