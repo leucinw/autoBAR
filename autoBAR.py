@@ -32,6 +32,54 @@ def _force_symlink(src, dst):
   os.symlink(src, dst)
 
 
+def _has_intramolecular_nonbonded(xyzlines):
+  """True if the solute has any atom pair separated by >= 3 bonds.
+
+  AMOEBA excludes intramolecular vdW and multipole interactions between 1-2 and
+  1-3 neighbours. A solute whose atoms all lie within two bonds of one another
+  -- a bare ion, water, H2S, NH3 -- has nothing for the gas-phase leg to
+  decouple: its free energy is identically zero and running it only costs wall
+  time. The moment a 1-4 pair exists, i.e. the solute has a torsion, the gas
+  leg is real and must be sampled.
+
+  Atom count cannot distinguish the two cases: NH3 has four atoms and no 1-4
+  pair, while H-C#C-H has four atoms and one. This walks the connectivity
+  columns of the Tinker .xyz instead. A disconnected file (two fragments) also
+  reports True, since nothing excludes interactions between separate molecules.
+
+  Mirrors tinkerio.has_intramolecular_nonbonded() in autoFF -- keep in sync.
+  """
+  natom = int(xyzlines[0].split()[0])
+  body = xyzlines[1:]
+  # Skip an optional box line so files carrying lattice info still parse
+  if body and len(body[0].split()) >= 6:
+    try:
+      [float(p) for p in body[0].split()[:6]]
+      body = body[1:]
+    except ValueError:
+      pass
+  if natom < 4:               # 3 atoms can only ever be 1-2 or 1-3 apart
+    return False
+  neighbours = {}
+  for ln in body[:natom]:
+    s = ln.split()
+    neighbours[int(s[0])] = [int(b) for b in s[6:]]
+  for start in neighbours:
+    within_two = {start}
+    frontier = {start}
+    for _ in range(2):
+      nxt = set()
+      for u in frontier:
+        nxt.update(neighbours.get(u, ()))
+      nxt -= within_two
+      within_two |= nxt
+      frontier = nxt
+    # Any atom not reachable in two bonds is a 1-4 (or farther) partner
+    if len(within_two) < len(neighbours):
+      return True
+  return False
+
+
 def _read_free_energy(enefile):
   """Read free energy and error from a BAR .ene file.
 
@@ -686,9 +734,10 @@ if __name__ == "__main__":
   with open(lig) as f:
     liglines = f.readlines()
   natomgas = int(liglines[0].split()[0])
-  if natomgas < 5:
+  if not _has_intramolecular_nonbonded(liglines):
     gastotaltime = 0.0
-    print(YELLOW + f" [Warning] I set the simulation time to 0 since it only contains {natomgas} atoms" + ENDC)
+    print(YELLOW + f" [Warning] I set the gas simulation time to 0: the solute has "
+          f"{natomgas} atoms and no 1-4 pair, so the gas leg is identically zero" + ENDC)
   ignoregas = 1 if gastotaltime == 0.0 else 0
   if ignoregas == 0:
     phases.insert(0, 'gas')
