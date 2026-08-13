@@ -46,7 +46,21 @@ GPU_OCCUPANT_KEYWORDS = (
     "gmx",                                      # GROMACS
     "terachem",                                  # TeraChem
     "python",                                    # OpenMM / PySCF / etc.
-    "cp2k",                                    # CP2K 
+    "cp2k",                                    # CP2K
+)
+
+# GPU models Tinker9 has no compiled kernels for. Matched case-insensitively as
+# a substring of the card's product name and never handed out, even when idle.
+#
+# Quadro K620 is compute capability 5.0: dynamic9 gets as far as picking the
+# device and then dies with
+#   merge_sort: failed on 2nd step: cudaErrorSymbolNotFound: named symbol not found
+# It is card 0 on bme-neptune, whose card 1 (GTX 1070 Ti) runs fine -- verified
+# 2026-08-12 at 47.8 ns/day on a 2319-atom box. Because the dead card is always
+# idle it looked like the most attractive slot on the node, so jobs kept landing
+# on it and the whole node ended up commented out of nodes.dat.
+GPU_MODEL_BLOCKLIST = (
+    "Quadro K620",
 )
 
 # ---------------------------------------------------------------------------
@@ -158,6 +172,30 @@ def get_available_gpus(node):
                 pass
 
     all_cards = [str(i) for i in range(num_gpus)]
+
+    # Drop card models we have no kernels for, before occupancy is considered.
+    # They are permanently idle, so otherwise they look like the best slot on
+    # the node and every job placed there dies on startup. `nvidia-smi -a` prints
+    # one "Product Name" per card in index order, so this reuses the output
+    # already fetched above instead of paying another SSH round-trip per node.
+    models = [
+        line.split(":", 1)[1].strip()
+        for line in detail_lines
+        if line.strip().startswith("Product Name")
+    ]
+    if len(models) != num_gpus:
+        # Indices would not line up; skip blocking rather than exclude the wrong card
+        log.debug("%s: %d card names for %d GPUs — model blocklist not applied",
+                  node, len(models), num_gpus)
+    else:
+        blocked = {
+            str(i) for i, model in enumerate(models)
+            if any(bad.lower() in model.lower() for bad in GPU_MODEL_BLOCKLIST)
+        }
+        if blocked:
+            log.debug("%s: skipping unsupported card(s) %s",
+                      node, ", ".join(sorted(blocked)))
+            all_cards = [c for c in all_cards if c not in blocked]
 
     # Find occupied cards by scanning for known GPU-using processes
     occupied = []
